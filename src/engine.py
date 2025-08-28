@@ -4,6 +4,7 @@ from .dice import DiceRoller
 from .module_loader import ModuleLoader
 from .action_manager import ActionManager
 from .initiative import InitiativeTracker
+from .persistence import PersistenceManager
 
 class Engine:
     """The main VTT engine."""
@@ -14,6 +15,7 @@ class Engine:
         self.action_manager = ActionManager()
         self.module_loader = ModuleLoader(self.action_manager, modules_directory)
         self.initiative_tracker = InitiativeTracker()
+        self.persistence_manager = PersistenceManager()
         self.active_module = None
 
     def load_system_module(self, module_id):
@@ -131,3 +133,32 @@ class Engine:
             self.entity_manager.update_attribute(damage_target.id, "hp", new_hp)
 
             print(f"{actor.attributes.get('name', actor.id)} deals {damage_amount} damage to {damage_target.attributes.get('name', damage_target.id)}. New HP: {new_hp}")
+
+    def get_persistence_manager(self):
+        return self.persistence_manager
+
+    def save_game(self, filepath):
+        """Gathers the game state and saves it to a file."""
+        game_state = self.persistence_manager.gather_game_state(self)
+        return self.persistence_manager.save_game(game_state, filepath)
+
+    def load_game(self, filepath):
+        """Loads the game state from a file and restores the engine."""
+        game_state = self.persistence_manager.load_game(filepath)
+        if game_state is None:
+            return False
+
+        # Restore active module
+        if game_state.get('active_module_id'):
+            self.load_system_module(game_state['active_module_id'])
+
+        # Restore entities
+        if 'entity_manager' in game_state:
+            self.entity_manager.load_from_dict(game_state['entity_manager'])
+
+        # Restore initiative
+        if 'initiative_tracker' in game_state:
+            self.initiative_tracker.load_from_dict(game_state['initiative_tracker'])
+
+        print("Game state successfully loaded and restored.")
+        return True

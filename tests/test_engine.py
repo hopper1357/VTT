@@ -1,4 +1,5 @@
 import unittest
+import os
 from unittest.mock import patch
 from src.engine import Engine
 
@@ -107,6 +108,40 @@ class TestEngine(unittest.TestCase):
         # Check turn order
         expected_order = [npc.id, player.id]
         self.assertEqual(tracker.get_turn_order(), expected_order)
+
+    def test_engine_save_and_load(self):
+        print("Running test: test_engine_save_and_load")
+        save_filepath = "engine_test_save.json"
+
+        # 1. Set up an initial engine state
+        self.engine.load_system_module("dnd5e")
+        em = self.engine.get_entity_manager()
+        tracker = self.engine.get_initiative_tracker()
+        player = em.create_entity("character", {"name": "Player", "hp": 20})
+        tracker.add_combatant(player.id, 15)
+
+        # 2. Save the state
+        self.engine.save_game(save_filepath)
+        self.assertTrue(os.path.exists(save_filepath))
+
+        # 3. Create a new engine and load the state
+        new_engine = Engine()
+        load_success = new_engine.load_game(save_filepath)
+        self.assertTrue(load_success)
+
+        # 4. Verify the loaded state
+        self.assertEqual(new_engine.active_module.id, self.engine.active_module.id)
+
+        loaded_em = new_engine.get_entity_manager()
+        loaded_player = loaded_em.get_entity(player.id)
+        self.assertIsNotNone(loaded_player)
+        self.assertEqual(loaded_player.attributes['hp'], 20)
+
+        loaded_tracker = new_engine.get_initiative_tracker()
+        self.assertEqual(loaded_tracker.combatants[player.id], 15)
+
+        # 5. Clean up
+        os.remove(save_filepath)
 
 
 if __name__ == '__main__':

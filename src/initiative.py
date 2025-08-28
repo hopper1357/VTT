@@ -46,3 +46,15 @@ class InitiativeTracker:
     def combatants(self):
         """Returns the dictionary of combatants and their scores."""
         return self._combatants
+
+    def to_dict(self):
+        """Returns a serializable dictionary representation of the tracker's state."""
+        return {
+            'combatants': self.combatants
+        }
+
+    def load_from_dict(self, data):
+        """Restores the tracker's state from a dictionary."""
+        self.clear()
+        combatants_data = data.get('combatants', {})
+        self._combatants = combatants_data.copy()

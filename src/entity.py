@@ -10,6 +10,21 @@ class Entity:
     def __repr__(self):
         return f"Entity(id={self.id}, type={self.entity_type}, attributes={self.attributes})"
 
+    def to_dict(self):
+        """Returns a serializable dictionary representation of the entity."""
+        return {
+            'id': self.id,
+            'entity_type': self.entity_type,
+            'attributes': self.attributes
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        """Creates an entity from a dictionary, preserving its ID."""
+        entity = cls(data['entity_type'], data.get('attributes'))
+        entity.id = data['id'] # Important: restore the original ID
+        return entity
+
 class EntityManager:
     """Manages all entities in the game session."""
     def __init__(self):
@@ -74,3 +89,20 @@ class EntityManager:
                 return self.get_ability_modifier(score)
 
         return 0  # Variable not found
+
+    def to_dict(self):
+        """Returns a serializable dictionary representation of the manager's state."""
+        return {
+            'entities': [entity.to_dict() for entity in self._entities.values()]
+        }
+
+    def load_from_dict(self, data):
+        """Restores the manager's state from a dictionary."""
+        self.clear_entities()
+        for entity_data in data.get('entities', []):
+            entity = Entity.from_dict(entity_data)
+            self._entities[entity.id] = entity
+
+    def clear_entities(self):
+        """Clears all entities from the manager."""
+        self._entities.clear()
