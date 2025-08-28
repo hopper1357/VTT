@@ -1,0 +1,2013 @@
+1. Core Design Philosophy
+
+Core engine: Handles universal things all games share:
+
+Maps/grids/hexes
+
+Tokens/miniatures
+
+Dice roller
+
+Character sheets (abstract, not hardcoded)
+
+Turn tracker / initiative
+
+Chat/log system
+
+Plugin system: Allows game-specific mechanics to “hook into” the core.
+For example, Shadowrun’s exploding dice or Traveller’s 2d6 resolution can both use the same dice-roller API, but with different rules.
+
+2. Data Abstraction
+
+Define generic data models:
+
+Entity = Characters, NPCs, Monsters, Items, etc.
+
+Attributes = Customizable stats (strength, armor class, credits, hit points, etc.)
+
+Actions = Rolls, abilities, skills, spells, hacking, etc.
+
+Let modules declare new attributes and actions rather than hardcode them.
+Example: Shadowrun module defines edge and matrix actions; Traveller defines starship stats.
+
+3. Scripting & Rules System
+
+Provide a lightweight scripting layer (maybe Lua, Python, or JSON logic definitions).
+
+D&D example: attack_roll = roll(1d20) + strength_mod + proficiency
+
+Shadowrun example: successes = count(roll(n d6) >= 5)
+
+Traveller example: check = roll(2d6) + skill - difficulty
+
+Rules modules can expose functions to the UI (buttons, actions on tokens, automated combat resolution).
+
+4. UI Layer
+
+Core VTT features: map view, handouts, dice roller, character sheet window.
+
+Modules define:
+
+Character sheet layouts (customizable forms, tabs, widgets).
+
+Extra panels (e.g. Shadowrun’s Matrix overlay, Traveller’s starship crew sheet).
+
+Use a layout engine (like JSON-defined forms) so modules don’t require heavy coding for UI.
+
+5. Content Loading (Modules)
+
+Each module contains:
+
+Metadata (game name, version, author).
+
+Rules (scripts/macros).
+
+Character sheet templates.
+
+Assets (tokens, icons, maps, decks).
+
+Optional automation (combat flow, initiative, NPC actions).
+
+This way, a D&D module might include a 5e SRD character sheet + spell lists, while a Traveller module might have starship construction sheets and a different dice macro set.
+
+6. Strict vs Flexible Balance
+
+Strict: The core system should force a consistent structure (entities, attributes, actions, events). This prevents chaos.
+
+Flexible: Modules can extend or override. E.g., Shadowrun adds a special initiative phase for Matrix actions, Traveller adds starship combat rules.
+
+7. Tech Considerations
+
+Frontend: Web (React, Svelte) or cross-platform desktop (Electron, .NET MAUI, Qt).
+
+Backend: Node.js or Python server (for multiplayer sync, saving, and dice).
+
+Persistence: Database or flat file JSON for modules/campaigns.
+
+Networking: Real-time sync with WebSockets or similar.
+
+✅ If you succeed, you basically build a “Rule System Agnostic VTT” — like a mix of Foundry VTT and Tabletop Simulator, but with more structure and scripting flexibility.
+
+Would you like me to sketch out a core architecture diagram (modules, core engine, data flow) so you can see how all the pieces fit together?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect 👍 Let me lay out a core architecture diagram for your universal VTT idea. I’ll break it into layers so you can see what belongs in the strict "engine" versus the flexible "module" side.
+
+🏗️ Core Architecture for a System-Agnostic VTT
+ ┌─────────────────────────────┐
+ │        Presentation          │
+ │ (UI, Map, Sheets, Chat, HUD) │
+ └───────────────┬─────────────┘
+                 │
+ ┌───────────────▼────────────────┐
+ │       Rules Integration Layer   │
+ │  - Dice Roller API              │
+ │  - Turn/Initiative Manager      │
+ │  - Event System (hooks/events)  │
+ │  - Automation Engine (macros)   │
+ └───────────────┬────────────────┘
+                 │
+ ┌───────────────▼───────────────────┐
+ │         Core Game Engine           │
+ │  - Entity System (PC/NPC/Items)    │
+ │  - Attribute System (stats, HP)    │
+ │  - Action System (attacks, skills) │
+ │  - Map/Grid/Hex System             │
+ │  - Token Manager                   │
+ │  - Chat/Log                        │
+ │  - Persistence (save/load)         │
+ └───────────────┬───────────────────┘
+                 │
+ ┌───────────────▼────────────────────┐
+ │          Module System              │
+ │  - Rulesets (D&D, Shadowrun, etc.) │
+ │  - Character Sheet Templates       │
+ │  - Macros/Automation Scripts       │
+ │  - Assets (maps, tokens, decks)    │
+ │  - Metadata                        │
+ └────────────────────────────────────┘
+
+🔑 Key Design Points
+
+Core Game Engine (Strict, Universal)
+
+Provides building blocks: maps, tokens, entities, attributes.
+
+Knows nothing about D&D or Shadowrun — just abstract concepts.
+
+Rules Integration Layer (Flexible but Structured)
+
+Modules define mechanics via scripting or JSON rules.
+
+Example: Shadowrun defines success counting on d6, Traveller defines 2d6 + skill checks.
+
+Presentation Layer (Customizable)
+
+Character sheet layouts defined by JSON templates (modules don’t hardcode UI).
+
+Core renders forms, buttons, and action triggers.
+
+Special UIs (like Traveller starship sheets) can be extensions.
+
+Module System (Plug-ins)
+
+Each RPG system is a self-contained “package” with:
+
+Rules (scripting/macros)
+
+Sheet layouts (JSON forms)
+
+Assets (art, tokens, items, reference handouts)
+
+Campaigns load a module, which injects rules + content into the core.
+
+⚡ Example Flow
+
+Player clicks “Attack with Sword”.
+
+Module defines that as: roll(1d20) + STR_mod + proficiency.
+
+Core dice API handles rolling.
+
+Result is passed through module’s rules (success/fail, crit, etc.).
+
+Presentation layer shows the result in chat + updates HP.
+
+If you load Shadowrun instead, the same core flow works, but the module changes the logic to:
+roll(n d6), count(>=5), compare to defense threshold.
+
+👉 This way, the engine is strict (entities, tokens, dice roller, sheets, maps) but modules bend the rules to make wildly different systems work.
+
+Do you want me to also sketch out how the module format (like JSON/Lua/Python structure) might look, so you can see how a D&D vs Shadowrun module would be defined?
+
+You said:
+yes
+ChatGPT said:
+
+Great — let’s design a module format so that you can plug in very different RPG systems (D&D, Shadowrun, Traveller, etc.) without hardcoding their rules into the engine.
+
+I’ll show you a JSON-based approach (readable, easy to load), but we can layer in scripting (Lua/Python/JS) where flexibility is needed.
+
+📦 Module Format Example
+
+Each module is a self-contained package with:
+
+metadata.json (name, version, authors)
+
+rules.json (dice, checks, macros)
+
+sheets.json (character sheet templates)
+
+assets/ (maps, tokens, icons, decks, images)
+
+Optional scripts/ (custom rule logic)
+
+1. Metadata (metadata.json)
+{
+  "name": "Dungeons & Dragons 5e",
+  "id": "dnd5e",
+  "version": "1.0.0",
+  "author": "Open Source SRD",
+  "description": "Implements D&D 5e mechanics and SRD content."
+}
+
+2. Rules (rules.json)
+D&D Example
+{
+  "dice": {
+    "attack_roll": "1d20 + @strength_mod + @proficiency",
+    "saving_throw": "1d20 + @ability_mod"
+  },
+  "mechanics": {
+    "critical": "if roll == 20 then double_dice",
+    "advantage": "roll(2d20).highest"
+  }
+}
+
+Shadowrun Example
+{
+  "dice": {
+    "skill_check": "count(roll(@dice_pool d6) >= 5)"
+  },
+  "mechanics": {
+    "edge": "reroll_failures",
+    "glitch": "if half_dice_fail then trigger('glitch')"
+  }
+}
+
+Traveller Example
+{
+  "dice": {
+    "skill_check": "2d6 + @skill + @attribute"
+  },
+  "mechanics": {
+    "effect": "result - target",
+    "starship_initiative": "2d6 + @crew_skill"
+  }
+}
+
+3. Character Sheets (sheets.json)
+D&D Example
+{
+  "character": {
+    "tabs": [
+      {
+        "name": "Attributes",
+        "fields": [
+          {"label": "Strength", "key": "strength", "type": "number"},
+          {"label": "Dexterity", "key": "dexterity", "type": "number"}
+        ]
+      },
+      {
+        "name": "Combat",
+        "fields": [
+          {"label": "Armor Class", "key": "ac", "type": "number"},
+          {"label": "Hit Points", "key": "hp", "type": "number"}
+        ]
+      }
+    ]
+  }
+}
+
+Traveller Example
+{
+  "character": {
+    "tabs": [
+      {
+        "name": "Personal Data",
+        "fields": [
+          {"label": "Strength", "key": "str", "type": "number"},
+          {"label": "Education", "key": "edu", "type": "number"}
+        ]
+      },
+      {
+        "name": "Starship",
+        "fields": [
+          {"label": "Ship Name", "key": "ship_name", "type": "text"},
+          {"label": "Hull Points", "key": "hull", "type": "number"}
+        ]
+      }
+    ]
+  }
+}
+
+4. Assets (assets/)
+assets/
+   tokens/
+      goblin.png
+      dragon.png
+   maps/
+      dungeon_map.jpg
+   icons/
+      sword.svg
+      shield.svg
+
+5. Optional Scripts (scripts/)
+
+If JSON isn’t flexible enough, modules can include scripts:
+
+Lua/Python for rule automation
+
+Example: Shadowrun exploding dice function
+
+function exploding_d6(pool)
+    local total = 0
+    for i=1,pool do
+        local roll = d6()
+        total = total + (roll >= 5 and 1 or 0)
+        if roll == 6 then
+            total = total + exploding_d6(1) -- recursive
+        end
+    end
+    return total
+end
+
+🧩 Why this works
+
+Strict core: Knows only about entities, attributes, actions, maps, and dice.
+
+Flexible modules: Define how dice, rolls, sheets, and mechanics behave.
+
+Cross-system consistency: Traveller, D&D, Shadowrun all use the same slot (skill_check) but with their own rules.
+
+Would you like me to also show how the core engine API could look — e.g. the functions a module can call (roll(), update_attribute(), trigger_event()) — so you can see what scripting hooks modules would use?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect — let’s define the Core Engine API that your modules will hook into.
+Think of it as the “contract” between your strict VTT engine and the flexible game modules.
+
+This keeps the engine lean (no system-specific rules baked in) and lets modules plug in new mechanics.
+
+⚙️ Core Engine API (Module Hook Layer)
+🎲 Dice API
+
+Universal dice rolling tools:
+
+roll("1d20 + 5");           // returns { total: 17, rolls: [12], modifiers: [+5] }
+roll("4d6.dropLowest(1)");  // returns { total: 14, rolls: [6, 5, 3, 2] }
+countSuccesses("10d6 >= 5"); // returns { successes: 4, rolls: [...] }
+
+
+Supports:
+
+Basic expressions (1d20 + STR)
+
+Modifiers (drop lowest, keep highest, reroll, exploding)
+
+Success-counting (Shadowrun-style)
+
+🧍 Entity API
+
+Entities = characters, NPCs, monsters, items, ships, etc.
+
+createEntity(type="character", data={ name: "Gimli", hp: 40 });
+getEntity(id);
+updateAttribute(id, "hp", -5);
+getAttribute(id, "strength");
+listEntities(type="npc");
+
+
+Entities are just data bags with key-value attributes. Modules define which attributes exist.
+
+🗡️ Action API
+
+Actions = buttons on the sheet or shortcuts in the UI.
+
+registerAction("attack_roll", {
+    label: "Attack",
+    formula: "1d20 + @strength_mod + @proficiency",
+    onSuccess: (result, actor, target) => {
+        if (result.total >= target.ac) {
+            updateAttribute(target.id, "hp", -roll("1d8+3").total);
+        }
+    }
+});
+
+triggerAction("attack_roll", actorId, targetId);
+
+
+Modules register actions
+
+Core handles execution + UI buttons
+
+Actions can use dice API, entities, and events
+
+📜 Event System
+
+Modules can hook into events to extend rules.
+
+on("rollComplete", (data) => {
+    if (data.actor.hasTrait("Lucky")) {
+        // Re-roll 1s
+        if (data.rolls.includes(1)) reroll(data);
+    }
+});
+
+on("turnStart", (actor) => {
+    log(actor.name + " begins their turn!");
+});
+
+on("entityUpdate", (entity, changes) => {
+    if (entity.hp <= 0) trigger("death", entity);
+});
+
+📊 Sheet / UI API
+
+Modules define sheets via JSON, but can enhance with scripts.
+
+registerSheet("character", sheetJson);
+openSheet(entityId);
+updateSheet(entityId, { hp: 12 });
+
+
+registerSheet: Load JSON form layout (fields, tabs, etc.)
+
+openSheet: Pop up the sheet in UI
+
+updateSheet: Sync UI with backend changes
+
+🌍 Map / Token API
+
+Universal token and map tools.
+
+spawnToken(entityId, mapId, { x: 10, y: 5 });
+moveToken(tokenId, { x: 12, y: 7 });
+removeToken(tokenId);
+centerMapOn(tokenId);
+
+💾 Persistence API
+
+Modules can save/load campaign-specific data.
+
+saveState("ship_log", { captain: "Aramis", credits: 1200 });
+loadState("ship_log");
+
+📐 Example: Shadowrun Skill Check Module
+registerAction("fireWeapon", {
+    label: "Fire Weapon",
+    formula: "count(roll(@dice_pool d6) >= 5)",
+    onSuccess: (result, actor, target) => {
+        if (result.successes > target.defense) {
+            updateAttribute(target.id, "hp", -roll("9p").total); // 9p = custom damage code
+        }
+    }
+});
+
+on("rollComplete", (data) => {
+    if (data.successes == 0 && data.rolls.filter(r => r == 1).length >= data.rolls.length/2) {
+        log(data.actor.name + " glitches!");
+    }
+});
+
+🔑 Summary
+
+The Core API gives modules a sandbox:
+
+🎲 Dice (rolls, successes, exploding)
+
+🧍 Entities (create/update attributes)
+
+🗡️ Actions (bind rolls to UI buttons/macros)
+
+📜 Events (hook into roll/turn/entity updates)
+
+📊 Sheets (define character UI)
+
+🌍 Map/tokens (spawn, move, remove)
+
+💾 Persistence (save custom state)
+
+Everything else is defined by modules (D&D, Shadowrun, Traveller, etc.) — the engine only provides the “universal language.”
+
+Would you like me to mock up a small JSON + script bundle for a simple module (say a minimal “Traveller 2d6 check”) so you can see the whole thing in action?
+
+You said:
+yes
+ChatGPT said:
+
+Awesome 😃 Let’s build a minimal Traveller module as if you were dropping it into your VTT.
+
+This will show you the bundle format (metadata, rules, sheet, script) and how the core engine API ties it together.
+
+📦 Traveller Module Example
+1. metadata.json
+{
+  "name": "Traveller Core",
+  "id": "traveller",
+  "version": "0.1.0",
+  "author": "Example Dev",
+  "description": "Implements Traveller 2D6 skill checks and basic character sheet."
+}
+
+2. rules.json
+{
+  "dice": {
+    "skill_check": "2d6 + @skill + @attribute"
+  },
+  "mechanics": {
+    "effect": "result - target"
+  }
+}
+
+
+This says:
+
+All skill checks use 2d6 + skill + attribute
+
+Traveller’s effect is the difference between roll and target
+
+3. sheets.json
+{
+  "character": {
+    "tabs": [
+      {
+        "name": "Attributes",
+        "fields": [
+          {"label": "Strength", "key": "str", "type": "number"},
+          {"label": "Dexterity", "key": "dex", "type": "number"},
+          {"label": "Endurance", "key": "end", "type": "number"},
+          {"label": "Education", "key": "edu", "type": "number"}
+        ]
+      },
+      {
+        "name": "Skills",
+        "fields": [
+          {"label": "Gun Combat", "key": "gun_combat", "type": "number"},
+          {"label": "Pilot", "key": "pilot", "type": "number"},
+          {"label": "Mechanic", "key": "mechanic", "type": "number"}
+        ]
+      }
+    ]
+  }
+}
+
+
+This makes a basic Traveller sheet:
+
+First tab = attributes
+
+Second tab = skills
+
+4. scripts/skillcheck.js
+// Register a Traveller skill check action
+registerAction("skill_check", {
+    label: "Skill Check",
+    formula: "2d6 + @skill + @attribute",
+    onSuccess: (result, actor, target, context) => {
+        let targetNum = context.difficulty || 8; // Default Traveller difficulty
+        let effect = result.total - targetNum;
+        log(`${actor.name} rolled ${result.total} vs ${targetNum} → Effect: ${effect}`);
+        if (effect >= 0) {
+            log(`${actor.name} succeeds!`);
+        } else {
+            log(`${actor.name} fails.`);
+        }
+    }
+});
+
+
+Usage:
+
+Player clicks Skill Check button.
+
+Rolls 2d6 + skill + attribute.
+
+Compares against difficulty (default 8).
+
+Logs result + Traveller “effect.”
+
+5. assets/
+assets/
+   tokens/
+      traveller_pc.png
+      traveller_npc.png
+   icons/
+      starship.svg
+
+🔄 How It Runs in the Engine
+
+GM loads Traveller module.
+
+Core engine sees:
+
+metadata.json → adds “Traveller Core” ruleset
+
+rules.json → registers base dice rules
+
+sheets.json → builds character sheet UI
+
+scripts/skillcheck.js → registers Traveller skill check action
+
+Player opens sheet → sees Attributes + Skills tabs.
+
+Player clicks Skill Check → engine executes module’s formula + script.
+
+Output: “Aramis rolled 10 vs 8 → Effect: +2 (Success!)”
+
+⚡ Boom — that’s a working Traveller 2d6 module in a self-contained package.
+You could build D&D, Shadowrun, Star Wars, etc. the same way by swapping out rules.json + sheets.json + scripts.
+
+Would you like me to also sketch a tiny D&D module in the same format, so you can compare side-by-side how two very different systems (D&D vs Traveller) would both slot into the same core?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect 👍 Let’s now build a minimal D&D 5e module side-by-side with the Traveller one. This will highlight how the same core engine can load wildly different systems just by swapping modules.
+
+📦 D&D 5e Module Example
+1. metadata.json
+{
+  "name": "Dungeons & Dragons 5e",
+  "id": "dnd5e",
+  "version": "0.1.0",
+  "author": "Example Dev",
+  "description": "Implements core mechanics for D&D 5e: attacks, saves, attributes, and hit points."
+}
+
+2. rules.json
+{
+  "dice": {
+    "attack_roll": "1d20 + @strength_mod + @proficiency",
+    "saving_throw": "1d20 + @ability_mod",
+    "damage_roll": "1d8 + @strength_mod"
+  },
+  "mechanics": {
+    "critical": "if d20 == 20 then double_dice",
+    "advantage": "roll(2d20).highest",
+    "disadvantage": "roll(2d20).lowest"
+  }
+}
+
+
+This defines the big 3: attack rolls, saving throws, damage rolls.
+Also includes crit, advantage, disadvantage mechanics.
+
+3. sheets.json
+{
+  "character": {
+    "tabs": [
+      {
+        "name": "Attributes",
+        "fields": [
+          {"label": "Strength", "key": "str", "type": "number"},
+          {"label": "Dexterity", "key": "dex", "type": "number"},
+          {"label": "Constitution", "key": "con", "type": "number"},
+          {"label": "Intelligence", "key": "int", "type": "number"},
+          {"label": "Wisdom", "key": "wis", "type": "number"},
+          {"label": "Charisma", "key": "cha", "type": "number"}
+        ]
+      },
+      {
+        "name": "Combat",
+        "fields": [
+          {"label": "Armor Class", "key": "ac", "type": "number"},
+          {"label": "Hit Points", "key": "hp", "type": "number"},
+          {"label": "Proficiency Bonus", "key": "proficiency", "type": "number"}
+        ]
+      }
+    ]
+  }
+}
+
+
+This makes a basic 5e character sheet with two tabs: Attributes + Combat.
+
+4. scripts/combat.js
+// Register an "Attack" action
+registerAction("attack_roll", {
+    label: "Attack",
+    formula: "1d20 + @strength_mod + @proficiency",
+    onSuccess: (result, actor, target) => {
+        log(`${actor.name} attacks ${target.name}!`);
+        if (result.total >= target.ac) {
+            let dmg = roll("1d8 + @strength_mod").total;
+            updateAttribute(target.id, "hp", -dmg);
+            log(`${actor.name} hits ${target.name} for ${dmg} damage!`);
+        } else {
+            log(`${actor.name} misses ${target.name}.`);
+        }
+    }
+});
+
+// Register a "Saving Throw"
+registerAction("saving_throw", {
+    label: "Saving Throw",
+    formula: "1d20 + @ability_mod",
+    onSuccess: (result, actor, context) => {
+        let dc = context.dc || 10;
+        if (result.total >= dc) {
+            log(`${actor.name} succeeds the save (rolled ${result.total} vs DC ${dc})!`);
+        } else {
+            log(`${actor.name} fails the save (rolled ${result.total} vs DC ${dc})!`);
+        }
+    }
+});
+
+
+This gives:
+
+Attack button → Roll d20 vs AC → apply damage if hit.
+
+Saving throw button → Roll d20 vs DC → succeed/fail message.
+
+5. assets/
+assets/
+   tokens/
+      fighter.png
+      goblin.png
+   icons/
+      longsword.svg
+      shield.svg
+
+🔄 Compare D&D vs Traveller
+Feature	Traveller Module	D&D Module
+Core Roll	2d6 + skill + attribute	1d20 + mod + proficiency
+Success Condition	Compare vs difficulty (default 8)	Compare vs AC/DC
+Extra Mechanic	Effect = roll - target	Critical hits, advantage/disadvantage
+Sheet Tabs	Attributes, Skills, Starship (optional)	Attributes, Combat
+Actions	Skill Check button	Attack & Saving Throw buttons
+
+Both run on the same engine. The difference is entirely in the module data + scripts.
+
+✅ With this, your VTT can load any system just by loading the right module.
+
+Do you want me to also draft a generic module manifest format (like a module.json index file that lists metadata, rules, sheets, scripts, and assets) so you can standardize how modules are packaged and loaded?
+
+You said:
+yes
+ChatGPT said:
+
+Great call 👍 — having a module manifest will make sure every ruleset package follows the same structure so your engine knows how to load it. Think of it like a package.json for your VTT.
+
+📦 Module Manifest (module.json)
+{
+  "id": "dnd5e",
+  "name": "Dungeons & Dragons 5e",
+  "version": "0.1.0",
+  "author": "Example Dev",
+  "description": "Implements core mechanics for D&D 5e: attacks, saves, attributes, and hit points.",
+  
+  "entry": {
+    "rules": "rules.json",
+    "sheets": "sheets.json",
+    "scripts": [
+      "scripts/combat.js",
+      "scripts/savingthrows.js"
+    ],
+    "assets": "assets/"
+  },
+
+  "dependencies": [],
+  
+  "engine": {
+    "minVersion": "0.5.0",
+    "maxVersion": "1.x"
+  },
+
+  "tags": ["fantasy", "dnd", "d20"]
+}
+
+🔑 Manifest Fields
+
+id → unique system identifier (e.g., traveller, shadowrun6e)
+
+name → display name
+
+version → module version (for updates)
+
+author → creator(s)
+
+description → short text about the module
+
+entry → where the engine finds module files
+
+rules → defines dice + mechanics
+
+sheets → character sheet layouts
+
+scripts → list of automation files
+
+assets → folder with tokens, icons, maps
+
+dependencies → optional (e.g., Shadowrun Matrix expansion depends on base Shadowrun 6e)
+
+engine → which engine versions this module supports
+
+tags → search/filter metadata
+
+🔄 Example: Traveller Manifest
+{
+  "id": "traveller",
+  "name": "Traveller Core",
+  "version": "0.1.0",
+  "author": "Example Dev",
+  "description": "Implements Traveller 2D6 skill checks and character sheets.",
+  
+  "entry": {
+    "rules": "rules.json",
+    "sheets": "sheets.json",
+    "scripts": ["scripts/skillcheck.js"],
+    "assets": "assets/"
+  },
+
+  "dependencies": [],
+  
+  "engine": {
+    "minVersion": "0.5.0",
+    "maxVersion": "1.x"
+  },
+
+  "tags": ["sci-fi", "classic", "2d6"]
+}
+
+⚙️ Engine Load Process (Step-by-Step)
+
+GM selects a module (e.g., traveller/module.json).
+
+Engine reads manifest:
+
+Loads rules.json into dice/mechanics system.
+
+Loads sheets.json into sheet renderer.
+
+Executes listed scripts/*.js (registering actions & hooks).
+
+Loads assets into the media library.
+
+Engine checks compatibility (engine.minVersion → engine.maxVersion).
+
+Module is live and integrated into the VTT.
+
+✅ This gives you a standard plug-and-play format.
+Anyone making a new ruleset knows exactly what files to include and how the engine will consume them.
+
+Do you want me to also show you how homebrew / user-made content (like a custom class, monster, or starship) could be packaged as a mini-module that depends on a core module (like D&D 5e or Traveller)?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect — this is where the design really shines 🚀.
+If your VTT supports mini-modules (content packs), people can share custom classes, monsters, spells, ships, or expansions that depend on a core ruleset without rewriting the whole system.
+
+📦 Homebrew / Mini-Module Format
+
+A mini-module looks just like a full module but:
+
+Declares a dependency on a core ruleset.
+
+Only provides extra sheets, rules, scripts, or assets.
+
+Does not redefine the whole system.
+
+Example 1: D&D 5e Homebrew Class (Psion)
+module.json
+{
+  "id": "dnd5e-psion",
+  "name": "D&D 5e - Psion Class",
+  "version": "1.0.0",
+  "author": "Homebrew Creator",
+  "description": "Adds a Psion class with powers and new abilities.",
+  
+  "entry": {
+    "rules": "rules.json",
+    "sheets": "sheets.json",
+    "scripts": ["scripts/psion.js"],
+    "assets": "assets/"
+  },
+
+  "dependencies": ["dnd5e"],
+
+  "engine": {
+    "minVersion": "0.5.0",
+    "maxVersion": "1.x"
+  },
+
+  "tags": ["fantasy", "homebrew", "class"]
+}
+
+rules.json
+{
+  "dice": {
+    "psionic_attack": "1d20 + @int_mod + @proficiency",
+    "psionic_damage": "2d8 + @int_mod"
+  }
+}
+
+sheets.json
+{
+  "character": {
+    "tabs": [
+      {
+        "name": "Psion",
+        "fields": [
+          {"label": "Psionic Power Points", "key": "psi_points", "type": "number"},
+          {"label": "Discipline", "key": "discipline", "type": "text"},
+          {"label": "Psi Save DC", "key": "psi_dc", "type": "number"}
+        ]
+      }
+    ]
+  }
+}
+
+scripts/psion.js
+registerAction("psionic_blast", {
+    label: "Psionic Blast",
+    formula: "2d8 + @int_mod",
+    onSuccess: (result, actor, target) => {
+        log(`${actor.name} unleashes psionic energy at ${target.name}!`);
+        updateAttribute(target.id, "hp", -result.total);
+    }
+});
+
+Example 2: Traveller Expansion (Starship Pack)
+module.json
+{
+  "id": "traveller-starships",
+  "name": "Traveller - Starship Expansion",
+  "version": "0.2.0",
+  "author": "Community Pack",
+  "description": "Adds new starship designs, crew sheets, and space combat rules.",
+  
+  "entry": {
+    "rules": "rules.json",
+    "sheets": "sheets.json",
+    "assets": "assets/"
+  },
+
+  "dependencies": ["traveller"],
+
+  "engine": {
+    "minVersion": "0.5.0",
+    "maxVersion": "1.x"
+  },
+
+  "tags": ["sci-fi", "expansion", "ships"]
+}
+
+rules.json
+{
+  "dice": {
+    "starship_initiative": "2d6 + @crew_skill + @ship_agility"
+  }
+}
+
+sheets.json
+{
+  "starship": {
+    "tabs": [
+      {
+        "name": "Systems",
+        "fields": [
+          {"label": "Hull Points", "key": "hull", "type": "number"},
+          {"label": "Power Plant", "key": "power", "type": "number"},
+          {"label": "Jump Drive", "key": "jump_drive", "type": "text"}
+        ]
+      },
+      {
+        "name": "Crew",
+        "fields": [
+          {"label": "Captain", "key": "captain", "type": "text"},
+          {"label": "Engineer", "key": "engineer", "type": "text"}
+        ]
+      }
+    ]
+  }
+}
+
+🔄 Engine Load Flow for Homebrew
+
+GM installs base module (D&D 5e or Traveller).
+
+GM installs homebrew mini-module (Psion class, Starship pack).
+
+Engine reads dependencies → loads base module first.
+
+Homebrew module extends:
+
+Adds new actions, rules, and sheets.
+
+Doesn’t overwrite existing ones unless explicitly allowed.
+
+GM now has core system + extra content seamlessly integrated.
+
+✅ This lets creators build small focused expansions (new races, monsters, ships, subsystems) without touching the original rules.
+It’s very similar to how Foundry VTT does “systems” and “modules” — but you’d be designing it from the ground up with this strict/flexible philosophy.
+
+Do you want me to also map out how conflicts should be handled (e.g. two homebrew modules both add a “psionics” system) — priority, merging, overrides — so your engine can stay stable when users stack multiple expansions?
+
+You said:
+yes
+ChatGPT said:
+
+Awesome 👍 let’s dive into conflict resolution + stability rules.
+If your VTT is going to support multiple modules + homebrews, you must define what happens when two things overlap. Otherwise, you’ll get chaos fast.
+
+⚖️ Conflict Resolution System for Modules
+1. Priority / Load Order
+
+Base system module (e.g., D&D 5e, Traveller) always loads first.
+
+Official expansions (e.g., Monsters Pack, Starships) load second.
+
+Homebrew modules load last.
+
+Within homebrew, GMs can set load order manually in the UI.
+
+2. Merging Rules
+
+Sheets:
+
+If two modules add a new tab, both tabs appear.
+
+If two modules define the same field key, the later one overrides.
+
+GM gets a warning: “Duplicate field: psi_points (from Psion + Mentalist modules). Keeping latest.”
+
+Rules / Dice Expressions:
+
+Unique keys merge fine.
+
+Duplicate keys → GM is asked at load:
+
+“Keep A, Keep B, or Rename one?”
+
+Optionally, GM can allow multiple versions and pick during play.
+
+Scripts / Actions:
+
+Registered actions have unique IDs.
+
+Duplicates → Last loaded overwrites (with warning).
+
+Assets:
+
+Duplicate asset names → Latest wins.
+
+Recommendation: enforce namespace convention:
+
+dnd5e.psion.icon.png
+
+traveller.starship.hull.svg
+
+3. Overrides vs Extensions
+
+Override = replaces base content (e.g., “new Grappling rules”).
+
+Extend = adds alongside existing (e.g., “Psion class alongside Fighter”).
+
+How to declare:
+
+{
+  "extends": ["character_class"],
+  "overrides": ["grapple_rules"]
+}
+
+
+This way, the GM knows which rules are being replaced.
+
+4. Conflict Resolution Flow
+
+Load system module.
+
+Load expansions (merge in new stuff).
+
+Load homebrew (merge → warn if conflicts).
+
+If duplicate keys exist →
+
+Auto-merge if possible.
+
+Otherwise mark conflict + let GM choose.
+
+Save GM’s choice in a local override file so they don’t get asked again.
+
+5. GM Tools for Conflict Management
+
+Module Load Order UI (drag to reorder).
+
+Conflict Log (lists all conflicts + what’s active).
+
+Sandbox Mode: GM can test new modules in a copy of campaign before deploying live.
+
+Safe Mode: Load only base system, ignore homebrew, useful if a session is breaking.
+
+Example: Conflict in Action
+
+GM loads two homebrews for D&D 5e:
+
+dnd5e-psion defines psi_points.
+
+dnd5e-mentalist also defines psi_points.
+
+Engine result:
+
+Detects duplicate key → warns.
+
+GM gets prompt:
+
+ Use Psion version
+
+ Use Mentalist version
+
+ Rename one → psi_points_alt
+
+GM picks Mentalist → Engine saves choice to conflict_resolutions.json.
+Next load → no prompt, Mentalist auto-wins.
+
+✅ With this setup, your VTT stays:
+
+Strict (everything must follow schema, conflicts are explicit).
+
+Flexible (multiple homebrews can stack).
+
+Stable (conflicts don’t silently break the game).
+
+Would you like me to also sketch out a developer kit structure (like a boilerplate folder layout + templates) so creators know exactly how to build modules & avoid conflicts?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect — let’s design a Developer Kit (DevKit) structure for your VTT.
+This will give content creators a ready-made folder + template system so they can build modules safely, avoid conflicts, and follow your engine standards.
+
+🛠️ VTT Developer Kit Structure
+VTT-DevKit/
+├── README.md
+├── templates/
+│   ├── system/
+│   │   ├── module.json
+│   │   ├── metadata.json
+│   │   ├── rules.json
+│   │   ├── sheets.json
+│   │   └── scripts/
+│   │       └── sample_action.js
+│   ├── mini-module/
+│   │   ├── module.json
+│   │   ├── rules.json
+│   │   ├── sheets.json
+│   │   └── scripts/
+│   │       └── sample_extension.js
+│   └── assets/
+│       ├── tokens/
+│       │   └── sample_token.png
+│       └── icons/
+│           └── sample_icon.svg
+├── docs/
+│   ├── guide.md
+│   ├── conflict_management.md
+│   ├── dice_syntax.md
+│   └── sheet_layout_guide.md
+└── examples/
+    ├── traveller_basic/
+    │   └── (full minimal Traveller module)
+    └── dnd5e_psion/
+        └── (homebrew Psion module)
+
+📂 Key Components Explained
+1. templates/
+
+system/ → Full system module boilerplate (D&D, Traveller, etc.)
+
+mini-module/ → For expansions, homebrew classes, monsters, or items
+
+assets/ → Pre-made token/icon folders for quick testing
+
+2. docs/
+
+guide.md → How to structure a module, metadata rules, engine API
+
+conflict_management.md → How to safely extend/override, naming conventions, load order
+
+dice_syntax.md → Guide for dice expressions, success-counting, exploding dice, etc.
+
+sheet_layout_guide.md → JSON layout rules for character sheets, tabs, and fields
+
+3. examples/
+
+Real-world minimal modules for developers to copy and adapt.
+
+Traveller 2d6 module, D&D Psion homebrew, etc.
+
+4. Scripts folder
+
+Sample scripts with best practices:
+
+Registering actions with unique IDs
+
+Using event hooks (on("rollComplete"))
+
+Avoiding conflicts by namespace (psion.psi_blast)
+
+5. Recommended Naming Conventions
+
+Module ID: systemname-mini-module (e.g., dnd5e-psion)
+
+Scripts: namespace.actionname.js (e.g., psion.psi_blast.js)
+
+Assets: moduleid.type.name.ext (e.g., dnd5e.token.goblin.png)
+
+This makes conflict detection easy and predictable.
+
+6. Optional Tooling
+
+Validator script: Checks module.json for missing keys, duplicate IDs, schema errors.
+
+Preview tool: Loads module in sandbox to test sheets, dice, and actions.
+
+Packager: Compress folder into .vttmodule for easy distribution.
+
+✅ With this DevKit, creators can:
+
+Quickly scaffold new modules.
+
+Follow naming and schema rules to avoid conflicts.
+
+Use examples & docs to implement dice, sheets, and scripts safely.
+
+Produce content that’s plug-and-play for GMs.
+
+If you want, I can mock up a full folder example for a minimal D&D homebrew class module using this DevKit layout so you can see exactly how all the files tie together.
+
+Do you want me to do that?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect! Let’s create a full folder example for a minimal D&D homebrew class (“Psion”) using the DevKit layout. This will show exactly how the files tie together.
+
+📂 Minimal D&D Psion Homebrew Module Example
+dnd5e-psion/
+├── module.json
+├── metadata.json
+├── rules.json
+├── sheets.json
+├── scripts/
+│   └── psion.js
+└── assets/
+    ├── tokens/
+    │   └── psion_token.png
+    └── icons/
+        └── psi_blast.svg
+
+1. module.json
+{
+  "id": "dnd5e-psion",
+  "name": "D&D 5e - Psion Class",
+  "version": "1.0.0",
+  "author": "Homebrew Creator",
+  "description": "Adds a Psion class with powers and new abilities.",
+  
+  "entry": {
+    "rules": "rules.json",
+    "sheets": "sheets.json",
+    "scripts": ["scripts/psion.js"],
+    "assets": "assets/"
+  },
+
+  "dependencies": ["dnd5e"],
+
+  "engine": {
+    "minVersion": "0.5.0",
+    "maxVersion": "1.x"
+  },
+
+  "tags": ["fantasy", "homebrew", "class"]
+}
+
+2. metadata.json
+{
+  "name": "D&D 5e Psion Class",
+  "id": "dnd5e-psion",
+  "version": "1.0.0",
+  "author": "Homebrew Creator",
+  "description": "Psion homebrew class for D&D 5e."
+}
+
+3. rules.json
+{
+  "dice": {
+    "psionic_attack": "1d20 + @int_mod + @proficiency",
+    "psionic_damage": "2d8 + @int_mod"
+  },
+  "mechanics": {
+    "psi_points": "track resource usage for psionic powers"
+  }
+}
+
+4. sheets.json
+{
+  "character": {
+    "tabs": [
+      {
+        "name": "Psion",
+        "fields": [
+          {"label": "Psionic Power Points", "key": "psi_points", "type": "number"},
+          {"label": "Discipline", "key": "discipline", "type": "text"},
+          {"label": "Psi Save DC", "key": "psi_dc", "type": "number"}
+        ]
+      }
+    ]
+  }
+}
+
+5. scripts/psion.js
+// Register Psionic Blast action
+registerAction("psionic_blast", {
+    label: "Psionic Blast",
+    formula: "2d8 + @int_mod",
+    onSuccess: (result, actor, target) => {
+        log(`${actor.name} unleashes Psionic Blast at ${target.name}!`);
+        updateAttribute(target.id, "hp", -result.total);
+    }
+});
+
+// Track Psi Points usage
+on("actionUsed", (action, actor) => {
+    if (action.id === "psionic_blast") {
+        let current = getAttribute(actor.id, "psi_points") || 0;
+        updateAttribute(actor.id, "psi_points", current - 1);
+    }
+});
+
+6. assets/
+tokens/
+    psion_token.png
+icons/
+    psi_blast.svg
+
+
+psion_token.png → token for character placement on the map
+
+psi_blast.svg → icon for the action button
+
+✅ How It Works in the Engine
+
+GM loads dnd5e core module.
+
+GM loads dnd5e-psion homebrew module.
+
+Engine reads manifest, merges rules, sheets, scripts, and assets.
+
+Psion class appears as a new character tab with “Psionic Power Points,” “Discipline,” and “Psi Save DC.”
+
+Player clicks Psionic Blast, engine rolls 2d8 + Int mod and applies damage to target.
+
+Psi Points are decremented automatically via script.
+
+This is a complete, working module folder that follows the DevKit structure.
+It’s fully plug-and-play, respects dependency (dnd5e), and uses unique namespaces to avoid conflicts.
+
+If you want, I can also mock up a matching Traveller mini-module folder so you can see D&D and Traveller side-by-side using the same DevKit layout. This is useful for testing cross-system consistency.
+
+Do you want me to do that?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect! Let’s build a minimal Traveller homebrew mini-module using the same DevKit layout. This will show how a Sci-Fi expansion (like a starship pack) plugs into the Traveller core system, side-by-side with D&D.
+
+📂 Traveller Starship Mini-Module Example
+traveller-starships/
+├── module.json
+├── metadata.json
+├── rules.json
+├── sheets.json
+├── scripts/
+│   └── starship.js
+└── assets/
+    ├── tokens/
+    │   └── starship_token.png
+    └── icons/
+        └── laser_cannon.svg
+
+1. module.json
+{
+  "id": "traveller-starships",
+  "name": "Traveller - Starship Expansion",
+  "version": "0.2.0",
+  "author": "Community Pack",
+  "description": "Adds new starship designs, crew sheets, and space combat rules.",
+  
+  "entry": {
+    "rules": "rules.json",
+    "sheets": "sheets.json",
+    "scripts": ["scripts/starship.js"],
+    "assets": "assets/"
+  },
+
+  "dependencies": ["traveller"],
+
+  "engine": {
+    "minVersion": "0.5.0",
+    "maxVersion": "1.x"
+  },
+
+  "tags": ["sci-fi", "expansion", "ships"]
+}
+
+2. metadata.json
+{
+  "name": "Traveller Starship Expansion",
+  "id": "traveller-starships",
+  "version": "0.2.0",
+  "author": "Community Pack",
+  "description": "Adds new starships and space combat rules to Traveller."
+}
+
+3. rules.json
+{
+  "dice": {
+    "starship_initiative": "2d6 + @crew_skill + @ship_agility",
+    "laser_attack": "1d10 + @gunnery_skill"
+  },
+  "mechanics": {
+    "hull_damage": "subtract from ship hull points",
+    "shield_absorption": "reduce incoming damage by shield rating"
+  }
+}
+
+4. sheets.json
+{
+  "starship": {
+    "tabs": [
+      {
+        "name": "Systems",
+        "fields": [
+          {"label": "Hull Points", "key": "hull", "type": "number"},
+          {"label": "Power Plant", "key": "power", "type": "number"},
+          {"label": "Jump Drive", "key": "jump_drive", "type": "text"},
+          {"label": "Shields", "key": "shields", "type": "number"}
+        ]
+      },
+      {
+        "name": "Crew",
+        "fields": [
+          {"label": "Captain", "key": "captain", "type": "text"},
+          {"label": "Engineer", "key": "engineer", "type": "text"},
+          {"label": "Gunner", "key": "gunner", "type": "text"}
+        ]
+      }
+    ]
+  }
+}
+
+5. scripts/starship.js
+// Starship Initiative Action
+registerAction("starship_initiative", {
+    label: "Initiative",
+    formula: "2d6 + @crew_skill + @ship_agility",
+    onSuccess: (result, actor, target) => {
+        log(`${actor.name}'s ship acts with initiative ${result.total}`);
+    }
+});
+
+// Laser Cannon Attack
+registerAction("laser_attack", {
+    label: "Fire Laser",
+    formula: "1d10 + @gunnery_skill",
+    onSuccess: (result, actor, target) => {
+        let shields = getAttribute(target.id, "shields") || 0;
+        let damage = Math.max(result.total - shields, 0);
+        updateAttribute(target.id, "hull", -damage);
+        log(`${actor.name} hits ${target.name} for ${damage} hull damage!`);
+    }
+});
+
+6. assets/
+tokens/
+    starship_token.png
+icons/
+    laser_cannon.svg
+
+
+starship_token.png → used on maps for starship positioning
+
+laser_cannon.svg → icon for ship attack button
+
+✅ How It Works in the Engine
+
+GM loads traveller core module.
+
+GM loads traveller-starships mini-module.
+
+Engine sees dependencies → ensures Traveller core is loaded first.
+
+Mini-module merges rules, sheets, scripts, and assets:
+
+Adds new Starship tabs
+
+Adds actions: starship initiative + laser attack
+
+Assets available in map/token library
+
+Players can now use ships in combat, roll initiative, and fire weapons.
+
+💡 Key Notes
+
+Mini-module does not redefine core character sheets or core dice mechanics — only extends them.
+
+Namespaced actions (starship_initiative, laser_attack) avoid conflicts with other modules.
+
+Follows same DevKit layout as the D&D Psion module, so your engine can treat all modules uniformly.
+
+If you want, I can now draw a complete visual diagram showing how the core engine, system modules, and homebrew/mini-modules all interact, including conflict resolution flow, so you can have a full blueprint for your VTT architecture.
+
+Do you want me to do that?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect! Let’s map out a full architecture diagram for your VTT.
+This will show how the core engine, system modules, mini-modules, and conflicts all interact.
+
+🖼️ VTT Architecture Overview
+┌───────────────────────┐
+│      Core Engine      │
+│──────────────────────│
+│ - Dice API            │
+│ - Entity API          │
+│ - Action API          │
+│ - Event System        │
+│ - Sheet/UI Renderer   │
+│ - Map/Token System    │
+│ - Persistence System  │
+└─────────┬─────────────┘
+          │
+          │ Loads modules
+          │
+┌─────────▼─────────────┐
+│   System Modules      │  ← Full rulesets (D&D 5e, Traveller)
+│──────────────────────│
+│ - Rules (dice/mechanics)
+│ - Character Sheets
+│ - Scripts (actions/events)
+│ - Assets (tokens/icons)
+└─────────┬─────────────┘
+          │ Merge / Extend
+          │
+┌─────────▼─────────────┐
+│ Mini-Modules / Homebrew │ ← Optional expansions
+│──────────────────────│
+│ - Dependencies (base module)
+│ - New Sheets / Tabs
+│ - New Rules / Dice
+│ - Scripts / Actions
+│ - Assets
+└─────────┬─────────────┘
+          │ Conflict Detection & Resolution
+          │
+┌─────────▼─────────────┐
+│   Conflict Manager    │
+│──────────────────────│
+│ - Detect duplicate IDs/keys
+│ - Warn GM of conflicts
+│ - Merge if possible
+│ - Apply overrides / extensions
+│ - Save GM decisions locally
+└─────────┬─────────────┘
+          │
+          ▼
+┌───────────────────────┐
+│       Game Session     │
+│──────────────────────│
+│ - Player interacts via Sheets/UI
+│ - Actions trigger scripts/events
+│ - Dice rolls evaluated
+│ - Tokens moved on map
+│ - Updates persisted
+└───────────────────────┘
+
+🔑 Key Points
+
+Core Engine
+
+Provides universal services (dice, entities, sheets, maps)
+
+Never contains system-specific rules
+
+System Modules
+
+Full games (D&D, Traveller, Shadowrun)
+
+Define rules, sheets, scripts, assets
+
+Mini-Modules / Homebrew
+
+Extend or override system modules
+
+Must declare dependencies
+
+Can add classes, items, ships, new actions
+
+Conflict Manager
+
+Detects duplicates between modules
+
+Warns GM, allows overrides/merges
+
+Uses namespaces and load order
+
+Stores GM decisions in conflict_resolutions.json
+
+Game Session
+
+Combines all loaded content
+
+Executes actions, rolls, and updates in real-time
+
+💡 This structure makes your VTT:
+
+Strict: Core API enforces standards
+
+Flexible: Any game system + expansions can be added
+
+Stable: Conflicts are explicit, not silent
+
+Extensible: Developers can create mini-modules without breaking the base system
+
+If you want, I can also mock up a “sample load sequence” diagram showing how the engine loads multiple modules and mini-modules, resolves conflicts, and presents the final merged session. This would be like a step-by-step flow during startup.
+
+Do you want me to do that next?
+
+You said:
+yes
+ChatGPT said:
+
+Perfect! Let’s create a step-by-step module load sequence diagram showing how your VTT handles multiple modules, merges content, and resolves conflicts during startup.
+
+🔄 Module Load Sequence Flow
+Start Engine
+     │
+     ▼
+Load Core Engine
+     │
+     │ Initialize APIs (Dice, Entity, Actions, Sheets, Maps, Persistence)
+     │
+     ▼
+Read Installed Modules
+     │
+     │ Sort by:
+     │   1. System Modules (base rulesets)
+     │   2. Official Expansions
+     │   3. Homebrew / Mini-Modules
+     │
+     ▼
+Load System Module #1 (e.g., D&D 5e)
+     │
+     │ - Load rules.json → register dice/mechanics
+     │ - Load sheets.json → create tabs/fields
+     │ - Load scripts → register actions/events
+     │ - Load assets → tokens/icons
+     │
+     ▼
+Load System Module #2 (e.g., Traveller)
+     │
+     │ Same process as above
+     │
+     ▼
+Load Homebrew / Mini-Module #1
+     │
+     │ Check Dependencies → Must have base module loaded
+     │ Merge:
+     │   - Add new sheets/tabs
+     │   - Add new dice/rules
+     │   - Register new scripts/actions
+     │   - Add assets
+     │
+     ▼
+Detect Conflicts
+     │
+     │ - Duplicate field keys? (sheets)
+     │ - Duplicate dice/mechanics? (rules)
+     │ - Duplicate action IDs? (scripts)
+     │ - Duplicate asset filenames? (tokens/icons)
+     │
+     ▼
+Resolve Conflicts
+     │
+     │ - Auto-merge if possible
+     │ - Warn GM if manual choice required
+     │ - Apply overrides/extensions per module settings
+     │ - Save GM decisions in conflict_resolutions.json
+     │
+     ▼
+Repeat Load for Next Mini-Module
+     │
+     ▼
+Finalize Merged Session Data
+     │
+     │ - All sheets, actions, rules, and assets now available
+     │ - Namespaces applied to avoid collisions
+     │
+     ▼
+Start Game Session
+     │
+     │ - Players open sheets
+     │ - Actions available via UI buttons
+     │ - Dice rolls, events, map/token updates handled by engine
+     │
+     ▼
+Game Ready!
+
+🔑 Notes on the Flow
+
+Load Order Matters
+
+System modules → expansions → homebrew
+
+Later modules can extend/override earlier ones
+
+Conflict Management
+
+Automatic merging when safe
+
+GM decision when ambiguous
+
+Saved for future sessions
+
+Namespacing
+
+Every action, field, and asset should include module prefix
+
+Prevents accidental overwrites
+
+Dependencies
+
+Mini-modules declare dependencies in module.json
+
+Engine ensures required base modules are loaded first
+
+Final Session State
+
+Merged rules + sheets + scripts + assets ready for gameplay
+
+The engine does not care which module they came from after merge
+
+✅ This gives a full picture of the startup process.
+It ensures your VTT can safely load multiple systems + expansions + homebrew without breaking or silently overwriting content.
+
+If you want, I can also draw a visual diagram combining the architecture + load sequence so you have a one-page blueprint for your engine, showing modules, mini-modules, conflict manager, and the game session.
+
+Do you want me to do that next?
+
+You said:
+can you write everything into a design document?
+ChatGPT said:
+
+Absolutely! Let’s turn everything we’ve discussed into a comprehensive VTT Design Document. I’ll organize it into sections for clarity, covering architecture, modules, mini-modules, conflicts, DevKit, and load sequence.
+
+Virtual Tabletop (VTT) Design Document
+
+Project Name: Modular Virtual Tabletop (VTT)
+Author: [Your Name]
+Date: 2025-08-28
+
+1. Overview
+
+The Modular VTT is a platform for playing tabletop RPGs that supports multiple game systems (e.g., D&D 5e, Traveller, Shadowrun) and homebrew / expansion modules. The system is designed to be strict enough to enforce consistency, yet flexible enough to handle wildly different game mechanics.
+
+Goals:
+
+Support any RPG system via a standardized module format.
+
+Allow homebrew content and expansions to extend or override core rules safely.
+
+Provide conflict detection and resolution.
+
+Maintain a clear structure for developers with a DevKit.
+
+2. Core Engine
+
+The core engine provides universal services for all modules:
+
+Dice API: Rolling, modifiers, success/failure evaluation.
+
+Entity API: Characters, NPCs, starships, or other units.
+
+Action API: Registering and executing actions (spells, attacks, skills).
+
+Event System: Hooks for custom behaviors.
+
+Sheet/UI Renderer: Renders character sheets and tabs dynamically from JSON.
+
+Map/Token System: Display and control game map, tokens, and assets.
+
+Persistence System: Save/load game state.
+
+The engine is system-agnostic, relying on modules to define rules, sheets, scripts, and assets.
+
+3. Module System
+3.1 Module Types
+
+System Module
+
+Full ruleset for a game (D&D 5e, Traveller).
+
+Contains all core rules, dice mechanics, sheets, scripts, and assets.
+
+Mini-Module / Homebrew
+
+Adds or overrides specific elements (classes, ships, monsters).
+
+Declares dependencies on a base system module.
+
+3.2 Module Structure
+
+Folder layout (DevKit standard):
+
+module_name/
+├── module.json
+├── metadata.json
+├── rules.json
+├── sheets.json
+├── scripts/
+│   └── action_scripts.js
+└── assets/
+    ├── tokens/
+    └── icons/
+
+
+module.json example:
+
+{
+  "id": "dnd5e-psion",
+  "name": "D&D 5e - Psion Class",
+  "version": "1.0.0",
+  "author": "Homebrew Creator",
+  "description": "Adds a Psion class with powers.",
+  "entry": {
+    "rules": "rules.json",
+    "sheets": "sheets.json",
+    "scripts": ["scripts/psion.js"],
+    "assets": "assets/"
+  },
+  "dependencies": ["dnd5e"],
+  "engine": {"minVersion": "0.5.0", "maxVersion": "1.x"},
+  "tags": ["fantasy", "homebrew", "class"]
+}
+
+3.3 Manifest Fields
+
+id → Unique system identifier
+
+name → Display name
+
+version → Module version
+
+author → Creator(s)
+
+description → Short text
+
+entry → File paths for rules, sheets, scripts, assets
+
+dependencies → Modules required before loading
+
+engine → Supported engine versions
+
+tags → Metadata for search/filter
+
+4. Character Sheets & Rules
+
+Sheets are defined in sheets.json with tabs and fields.
+
+Fields have label, key, and type.
+
+Rules in rules.json define dice expressions, success mechanics, and additional system logic.
+
+Scripts register actions using the Action API with unique IDs and optional hooks.
+
+Example: Psionic Blast action (D&D Psion module)
+
+registerAction("psionic_blast", {
+    label: "Psionic Blast",
+    formula: "2d8 + @int_mod",
+    onSuccess: (result, actor, target) => {
+        updateAttribute(target.id, "hp", -result.total);
+    }
+});
+
+5. Assets
+
+Tokens and icons stored under assets/
+
+Recommended naming convention to avoid conflicts: moduleid.type.name.ext
+
+Examples:
+
+dnd5e.token.goblin.png
+
+traveller.starship.hull.svg
+
+6. Conflict Management
+6.1 Detection
+
+Duplicate field keys in sheets
+
+Duplicate dice/mechanics keys in rules
+
+Duplicate action IDs in scripts
+
+Duplicate asset filenames
+
+6.2 Resolution
+
+Automatic merge if safe
+
+GM warning if manual choice required
+
+Apply overrides/extensions according to module declaration
+
+Save decisions in conflict_resolutions.json
+
+6.3 Load Order
+
+Core system modules
+
+Official expansions
+
+Homebrew / mini-modules (user can reorder manually)
+
+7. DevKit
+
+Provides developers with:
+
+Templates for system and mini-modules
+
+Documentation: guide.md, conflict_management.md, dice_syntax.md, sheet_layout_guide.md
+
+Examples: Traveller core module, D&D Psion module
+
+Validator script: checks for schema errors and duplicate IDs
+
+Preview tool: test modules in sandbox
+
+Packager: compress modules into distributable format
+
+8. Module Load Sequence
+
+Start engine → initialize core APIs
+
+Read installed modules → sort by type (system, expansion, homebrew)
+
+Load system modules → register rules, sheets, scripts, assets
+
+Load expansions → merge with system modules
+
+Load homebrew modules → check dependencies, merge, detect conflicts
+
+Resolve conflicts → automatic merge or GM choice
+
+Finalize merged session → all content available
+
+Start game session → players can interact via UI
+
+9. Example Modules
+D&D Psion Module
+
+Adds new class tab: Psion
+
+Rules: psionic_attack, psionic_damage
+
+Script: Psionic Blast action, Psi Points tracking
+
+Assets: psion token, psi blast icon
+
+Traveller Starship Module
+
+Adds Starship tabs: Systems & Crew
+
+Rules: starship_initiative, laser_attack
+
+Scripts: starship actions for combat
+
+Assets: starship token, laser cannon icon
+
+10. Visual Architecture
+[Core Engine] 
+     │
+     ▼
+[System Modules] → D&D, Traveller
+     │
+     ▼
+[Mini-Modules/Homebrew] → Psion, Starships
+     │
+     ▼
+[Conflict Manager] → auto/GM resolution
+     │
+     ▼
+[Game Session] → final merged sheets, rules, actions, assets
+
+
+✅ This design document provides a complete blueprint for building your modular VTT, supporting multiple systems, homebrew modules, conflict management, and a developer-friendly structure.
