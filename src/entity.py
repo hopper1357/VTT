@@ -106,3 +106,10 @@ class EntityManager:
     def clear_entities(self):
         """Clears all entities from the manager."""
         self._entities.clear()
+
+    def find_entity_by_name(self, name):
+        """Finds the first entity with a matching 'name' attribute."""
+        for entity in self._entities.values():
+            if entity.attributes.get('name') == name:
+                return entity
+        return None
