@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 
 class Module:
     """Represents a loaded module's data."""
@@ -19,8 +20,9 @@ class Module:
 
 class ModuleLoader:
     """Loads and manages modules for the VTT engine."""
-    def __init__(self, modules_directory="modules"):
+    def __init__(self, action_manager, modules_directory="modules"):
         self.modules_directory = modules_directory
+        self.action_manager = action_manager
         self.loaded_modules = {}
 
     def load_module(self, module_id):
@@ -48,6 +50,27 @@ class ModuleLoader:
             sheets_path = os.path.join(module_path, manifest['entry']['sheets'])
             with open(sheets_path, 'r') as f:
                 sheets = json.load(f)
+
+        # Load scripts and register actions
+        if 'scripts' in manifest['entry'] and self.action_manager:
+            for script_path_rel in manifest['entry']['scripts']:
+                script_path_abs = os.path.join(module_path, script_path_rel)
+                if os.path.exists(script_path_abs):
+                    try:
+                        result = subprocess.run(
+                            ['node', script_path_abs],
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                            encoding='utf-8'
+                        )
+                        actions_to_register = json.loads(result.stdout)
+                        for action_data in actions_to_register:
+                            self.action_manager.register_action(action_data)
+                    except subprocess.CalledProcessError as e:
+                        print(f"Error executing script {script_path_abs}: {e.stderr}")
+                    except json.JSONDecodeError as e:
+                        print(f"Error parsing JSON from {script_path_abs}: {e}")
 
         module = Module(manifest, rules, sheets)
         self.loaded_modules[module.id] = module

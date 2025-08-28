@@ -7,7 +7,9 @@
   "entry": {
     "rules": "rules.json",
     "sheets": "sheets.json",
-    "scripts": [],
+    "scripts": [
+      "scripts/actions.js"
+    ],
     "assets": "assets/"
   },
   "dependencies": [],

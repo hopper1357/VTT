@@ -1,12 +1,14 @@
 import unittest
 import os
 from src.module_loader import ModuleLoader
+from src.action_manager import ActionManager
 
 class TestModuleLoader(unittest.TestCase):
 
     def setUp(self):
         # We know the dnd5e module exists from the previous step
-        self.loader = ModuleLoader(modules_directory="modules")
+        action_manager = ActionManager()
+        self.loader = ModuleLoader(action_manager, modules_directory="modules")
 
     def test_load_module_success(self):
         print("Running test: test_load_module_success")

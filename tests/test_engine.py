@@ -42,5 +42,34 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(result["rolls"], [10])
         self.assertEqual(result["modifier"], 5) # 2 (str_mod) + 3 (proficiency)
 
+    def test_action_registration_on_module_load(self):
+        print("Running test: test_action_registration_on_module_load")
+        self.engine.load_system_module("dnd5e")
+
+        action_manager = self.engine.get_action_manager()
+        sword_attack_action = action_manager.get_action("sword_attack")
+
+        self.assertIsNotNone(sword_attack_action)
+        self.assertEqual(sword_attack_action.label, "Sword Attack")
+        self.assertEqual(sword_attack_action.formula, "1d20 + @strength_mod + @proficiency")
+
+    @patch('random.randint')
+    def test_execute_action_damage(self, mock_randint):
+        print("Running test: test_execute_action_damage")
+        # Mock dice rolls: 15 for attack (1d20), 4 for damage (1d8)
+        mock_randint.side_effect = [15, 4]
+
+        self.engine.load_system_module("dnd5e")
+        em = self.engine.get_entity_manager()
+
+        actor = em.create_entity("character", {"name": "Fighter", "str": 16}) # +3 mod
+        target = em.create_entity("npc", {"name": "Goblin", "hp": 10})
+
+        self.engine.execute_action("sword_attack", actor, target)
+
+        # Expected damage = 4 (1d8) + 3 (str_mod) = 7
+        # Expected HP = 10 - 7 = 3
+        self.assertEqual(em.get_attribute(target.id, "hp"), 3)
+
 if __name__ == '__main__':
     unittest.main()
