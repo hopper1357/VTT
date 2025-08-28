@@ -12,6 +12,7 @@ class TestEngine(unittest.TestCase):
         self.assertIsNotNone(self.engine.get_entity_manager())
         self.assertIsNotNone(self.engine.get_dice_roller())
         self.assertIsNotNone(self.engine.get_module_loader())
+        self.assertIsNotNone(self.engine.get_initiative_tracker())
 
     def test_load_system_module(self):
         print("Running test: test_load_system_module")
@@ -70,6 +71,43 @@ class TestEngine(unittest.TestCase):
         # Expected damage = 4 (1d8) + 3 (str_mod) = 7
         # Expected HP = 10 - 7 = 3
         self.assertEqual(em.get_attribute(target.id, "hp"), 3)
+
+    def test_initiative_action_is_registered(self):
+        print("Running test: test_initiative_action_is_registered")
+        self.engine.load_system_module("dnd5e")
+
+        action_manager = self.engine.get_action_manager()
+        initiative_action = action_manager.get_action("initiative")
+
+        self.assertIsNotNone(initiative_action)
+        self.assertEqual(initiative_action.formula, "1d20 + @dexterity_mod")
+
+    @patch('random.randint')
+    def test_roll_for_initiative(self, mock_randint):
+        print("Running test: test_roll_for_initiative")
+        # Mock d20 rolls: player rolls 10, npc rolls 15
+        mock_randint.side_effect = [10, 15]
+
+        self.engine.load_system_module("dnd5e")
+        em = self.engine.get_entity_manager()
+        tracker = self.engine.get_initiative_tracker()
+
+        player = em.create_entity("character", {"name": "Player", "dex": 14}) # +2 mod
+        npc = em.create_entity("npc", {"name": "NPC", "dex": 12}) # +1 mod
+
+        tracker.add_combatant(player.id)
+        tracker.add_combatant(npc.id)
+
+        self.engine.roll_for_initiative()
+
+        # Check scores
+        self.assertEqual(tracker.combatants[player.id], 12) # 10 + 2
+        self.assertEqual(tracker.combatants[npc.id], 16) # 15 + 1
+
+        # Check turn order
+        expected_order = [npc.id, player.id]
+        self.assertEqual(tracker.get_turn_order(), expected_order)
+
 
 if __name__ == '__main__':
     unittest.main()

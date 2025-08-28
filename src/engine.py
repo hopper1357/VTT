@@ -3,6 +3,7 @@ from .entity import EntityManager
 from .dice import DiceRoller
 from .module_loader import ModuleLoader
 from .action_manager import ActionManager
+from .initiative import InitiativeTracker
 
 class Engine:
     """The main VTT engine."""
@@ -12,6 +13,7 @@ class Engine:
         self.dice_roller = DiceRoller()
         self.action_manager = ActionManager()
         self.module_loader = ModuleLoader(self.action_manager, modules_directory)
+        self.initiative_tracker = InitiativeTracker()
         self.active_module = None
 
     def load_system_module(self, module_id):
@@ -31,6 +33,31 @@ class Engine:
 
     def get_action_manager(self):
         return self.action_manager
+
+    def get_initiative_tracker(self):
+        return self.initiative_tracker
+
+    def roll_for_initiative(self):
+        """
+        Rolls initiative for all combatants in the tracker.
+        It uses the 'initiative' action.
+        """
+        tracker = self.get_initiative_tracker()
+        em = self.get_entity_manager()
+
+        for entity_id in list(tracker.combatants.keys()):
+            entity = em.get_entity(entity_id)
+            if not entity:
+                print(f"Warning: Could not find entity {entity_id} for initiative roll.")
+                continue
+
+            # We use execute_action because it correctly resolves the formula
+            # with the entity's attributes. The initiative action has no onSuccess.
+            result = self.execute_action("initiative", actor=entity)
+            initiative_score = result["roll_result"]["total"]
+
+            tracker.set_initiative(entity_id, initiative_score)
+            print(f"Rolled initiative for {entity.attributes.get('name', entity.id)}: {initiative_score}")
 
     def execute_action(self, action_id, actor, target=None):
         """
