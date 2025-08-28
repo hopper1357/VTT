@@ -45,3 +45,32 @@ class EntityManager:
         if entity_type:
             return [e for e in self._entities.values() if e.entity_type == entity_type]
         return list(self._entities.values())
+
+    def get_ability_modifier(self, score):
+        """Calculates the D&D 5e ability modifier for a given score."""
+        return (score - 10) // 2
+
+    def resolve_variable(self, variable_name, entity):
+        """Resolves a variable string like 'strength_mod' for a given entity."""
+        if not entity:
+            return 0
+
+        # Simple attribute lookup
+        if variable_name in entity.attributes:
+            return entity.attributes.get(variable_name)
+
+        # Handle D&D 5e style modifiers
+        if variable_name.endswith("_mod"):
+            base_attribute_name = variable_name[:-4]  # remove "_mod"
+            # D&D uses 3-letter abbreviations for attributes
+            dnd_attr_map = {
+                "strength": "str", "dexterity": "dex", "constitution": "con",
+                "intelligence": "int", "wisdom": "wis", "charisma": "cha"
+            }
+            attr_key = dnd_attr_map.get(base_attribute_name, base_attribute_name)
+
+            if attr_key in entity.attributes:
+                score = entity.attributes[attr_key]
+                return self.get_ability_modifier(score)
+
+        return 0  # Variable not found
