@@ -1,0 +1,12 @@
+{
+  "dice": {
+    "attack_roll": "1d20 + @strength_mod + @proficiency",
+    "saving_throw": "1d20 + @ability_mod",
+    "damage_roll": "1d8 + @strength_mod"
+  },
+  "mechanics": {
+    "critical": "if d20 == 20 then double_dice",
+    "advantage": "roll(2d20).highest",
+    "disadvantage": "roll(2d20).lowest"
+  }
+}

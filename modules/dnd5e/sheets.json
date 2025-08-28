@@ -1,0 +1,25 @@
+{
+  "character": {
+    "tabs": [
+      {
+        "name": "Attributes",
+        "fields": [
+          {"label": "Strength", "key": "str", "type": "number"},
+          {"label": "Dexterity", "key": "dex", "type": "number"},
+          {"label": "Constitution", "key": "con", "type": "number"},
+          {"label": "Intelligence", "key": "int", "type": "number"},
+          {"label": "Wisdom", "key": "wis", "type": "number"},
+          {"label": "Charisma", "key": "cha", "type": "number"}
+        ]
+      },
+      {
+        "name": "Combat",
+        "fields": [
+          {"label": "Armor Class", "key": "ac", "type": "number"},
+          {"label": "Hit Points", "key": "hp", "type": "number"},
+          {"label": "Proficiency Bonus", "key": "proficiency", "type": "number"}
+        ]
+      }
+    ]
+  }
+}
