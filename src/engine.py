@@ -63,7 +63,7 @@ class Engine:
 
     def execute_action(self, action_id, actor, target=None):
         """
-        Executes a registered action.
+        Executes a registered action, including checking for success.
 
         Args:
             action_id (str): The ID of the action to execute.
@@ -79,16 +79,57 @@ class Engine:
 
         # 1. Roll the primary formula (e.g., the attack roll)
         roll_result = self.dice_roller.roll(action.formula, actor, self.entity_manager)
+        roll_total = roll_result['total']
+        print(f"{actor.attributes.get('name', actor.id)} rolls a {roll_total} for {action.label} (formula: {action.formula}).")
+        if roll_result.get("details"):
+            for detail in roll_result["details"]:
+                print(f"  > {detail}")
 
-        # 2. Execute the onSuccess command string
-        # For now, we assume a simple success/failure based on the roll,
-        # but the design doc doesn't specify this logic yet (e.g. vs AC).
-        # We will assume for now that the onSuccess command is always executed.
-        self._execute_command_string(action.on_success, actor, target, roll_result)
+        # 2. Check for success condition if 'check' is defined
+        is_success = True  # Default to success if no check is specified
+        if action.check and target:
+            check_data = action.check
+            left_str = check_data.get('left')
+            op = check_data.get('op')
+            right_str = check_data.get('right')
+
+            if not all([left_str, op, right_str]):
+                print(f"Warning: Incomplete check data for action '{action.id}'. Defaulting to success.")
+            else:
+                # Resolve left value (e.g., "roll.total")
+                left_val = roll_total if left_str == "roll.total" else 0
+
+                # Resolve right value (e.g., "target.ac")
+                right_val = 0
+                if right_str.startswith("target."):
+                    attr_name = right_str.split('.', 1)[1]
+                    target_entity = self.entity_manager.get_entity(target.id)
+                    if target_entity:
+                        right_val = self.entity_manager.get_attribute(target_entity.id, attr_name) or 0
+
+                print(f"Checking vs. Target AC: {left_val} {op} {right_val}")
+
+                # Evaluate the operation
+                op_map = {">=": (lambda a, b: a >= b), ">": (lambda a, b: a > b), "<=": (lambda a, b: a <= b), "<": (lambda a, b: a < b), "==": (lambda a, b: a == b)}
+                if op in op_map:
+                    try:
+                        is_success = op_map[op](int(left_val), int(right_val))
+                    except (ValueError, TypeError):
+                        is_success = False
+                else:
+                    print(f"Warning: Unsupported operator '{op}'.")
+
+        # 3. Execute onSuccess if the check passed
+        if is_success:
+            print(f"Result: Success! Executing onSuccess command...")
+            self._execute_command_string(action.on_success, actor, target, roll_result)
+        else:
+            print(f"Result: Failure. {actor.attributes.get('name', actor.id)}'s action has no effect.")
 
         return {
             "action": action,
-            "roll_result": roll_result
+            "roll_result": roll_result,
+            "success": is_success
         }
 
     def _execute_command_string(self, command_string, actor, target, roll_result):

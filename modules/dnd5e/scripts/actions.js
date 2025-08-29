@@ -3,7 +3,23 @@ const actions = [
         "id": "sword_attack",
         "label": "Sword Attack",
         "formula": "1d20 + @strength_mod + @proficiency",
-        "onSuccess": "damage(target, 1d8 + @strength_mod)"
+        "onSuccess": "damage(target, 1d8 + @strength_mod)",
+        "check": {
+            "left": "roll.total",
+            "op": ">=",
+            "right": "target.ac"
+        }
+    },
+    {
+        "id": "power_attack",
+        "label": "Power Attack",
+        "formula": "1d20_adv + @strength_mod + @proficiency",
+        "onSuccess": "damage(target, 1d8 + @strength_mod)",
+        "check": {
+            "left": "roll.total",
+            "op": ">=",
+            "right": "target.ac"
+        }
     },
     {
         "id": "initiative",

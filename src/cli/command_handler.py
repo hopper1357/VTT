@@ -34,6 +34,7 @@ class CommandHandler:
         print("  add <name>                    - Adds a character to the initiative tracker.")
         print("  init                          - Rolls initiative for all combatants.")
         print("  attack <target> with <actor>  - Executes an attack.")
+        print("  action <id> <actor> <target>  - Executes a generic action by its ID.")
         print("  save <filepath>               - Saves the game state.")
         print("  load <filepath>               - Loads the game state.")
         print("  exit                          - Exits the application.")
@@ -143,6 +144,32 @@ class CommandHandler:
         # For now, we assume the default attack is 'sword_attack'
         print(f"\nExecuting attack from {actor_name} on {target_name}...")
         self.engine.execute_action("sword_attack", actor, target)
+
+    def do_action(self, args):
+        """Executes a generic action. Usage: action <action_id> <actor_name> <target_name>"""
+        if len(args) != 3:
+            print("Usage: action <action_id> <actor_name> <target_name>")
+            return
+
+        action_id, actor_name, target_name = args
+
+        em = self.engine.get_entity_manager()
+        actor = em.find_entity_by_name(actor_name)
+        target = em.find_entity_by_name(target_name)
+
+        if not actor:
+            print(f"Error: Actor '{actor_name}' not found.")
+            return
+        if not target:
+            print(f"Error: Target '{target_name}' not found.")
+            return
+
+        if not self.engine.get_action_manager().get_action(action_id):
+            print(f"Error: Action '{action_id}' not found.")
+            return
+
+        print(f"\nExecuting action '{action_id}' from {actor_name} on {target_name}...")
+        self.engine.execute_action(action_id, actor, target)
 
     def do_save(self, args):
         """Saves the game state. Usage: save <filepath>"""
