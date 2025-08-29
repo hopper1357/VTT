@@ -97,27 +97,15 @@ class Engine:
                 print(f"Warning: Incomplete check data for action '{action.id}'. Defaulting to success.")
             else:
                 # Resolve left value (e.g., "roll.total")
-                left_val = 0
-                if left_str == "roll.total":
-                    left_val = roll_total
-                else:
-                    print(f"Warning: Unsupported 'left' value in check: {left_str}. Defaulting to 0.")
+                left_val = roll_total if left_str == "roll.total" else 0
 
                 # Resolve right value (e.g., "target.ac")
                 right_val = 0
                 if right_str.startswith("target."):
                     attr_name = right_str.split('.', 1)[1]
-                    # Ensure target has the entity manager to resolve attributes
                     target_entity = self.entity_manager.get_entity(target.id)
                     if target_entity:
-                        right_val = self.entity_manager.get_attribute(target_entity.id, attr_name)
-                        if right_val is None:
-                            print(f"Warning: Target '{target_entity.attributes.get('name', target_entity.id)}' has no attribute '{attr_name}'. Defaulting to 0.")
-                            right_val = 0
-                    else:
-                        print(f"Warning: Could not find target entity with id {target.id}")
-                else:
-                    print(f"Warning: Unsupported 'right' value in check: {right_str}. Defaulting to 0.")
+                        right_val = self.entity_manager.get_attribute(target_entity.id, attr_name) or 0
 
                 print(f"Checking vs. Target AC: {left_val} {op} {right_val}")
 
@@ -127,10 +115,9 @@ class Engine:
                     try:
                         is_success = op_map[op](int(left_val), int(right_val))
                     except (ValueError, TypeError):
-                        print(f"Warning: Could not compare values for check ({left_val}, {right_val}). Defaulting to failure.")
                         is_success = False
                 else:
-                    print(f"Warning: Unsupported operator '{op}'. Defaulting to success.")
+                    print(f"Warning: Unsupported operator '{op}'.")
 
         # 3. Execute onSuccess if the check passed
         if is_success:
