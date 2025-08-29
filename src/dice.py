@@ -7,6 +7,7 @@ class DiceRoller:
     def roll(self, expression, entity=None, entity_manager=None):
         """
         Rolls dice based on a string expression like "1d20 + @strength_mod + 2".
+        Supports advantage (_adv) and disadvantage (_dis) on dice terms.
 
         Args:
             expression (str): The dice expression to roll.
@@ -14,7 +15,8 @@ class DiceRoller:
             entity_manager (EntityManager, optional): The entity manager for resolving variables.
 
         Returns:
-            dict: A dictionary containing the total, a list of dice rolls, and the total modifier.
+            dict: A dictionary containing the total, a list of chosen dice rolls,
+                  the total modifier, and a list of details about the roll.
         """
         # Tokenize the expression by splitting on + and - while keeping the delimiters
         tokens = re.split(r'([+-])', expression)
@@ -22,6 +24,7 @@ class DiceRoller:
         total = 0
         all_rolls = []
         modifier_parts = []
+        roll_details = []
 
         # Start with a default '+' operator for the first term
         operator = '+'
@@ -35,17 +38,41 @@ class DiceRoller:
                 operator = token
                 continue
 
-            # This is a term (e.g., '1d20', '@strength_mod', '5')
+            # This is a term (e.g., '1d20', '@strength_mod', '5', '1d20_adv')
             value = 0
             is_dice_roll = False
 
-            # Dice roll term (e.g., "1d20", "2d6")
-            dice_match = re.match(r"(\d+)d(\d+)", token)
+            # Dice roll term (e.g., "1d20", "2d6", "1d20_adv")
+            dice_match = re.match(r"(\d+)d(\d+)(_adv|_dis)?", token)
             if dice_match:
                 is_dice_roll = True
                 num_dice = int(dice_match.group(1))
                 num_sides = int(dice_match.group(2))
-                rolls = [random.randint(1, num_sides) for _ in range(num_dice)]
+                suffix = dice_match.group(3)
+
+                # Helper to perform a single roll of the dice
+                roll_once = lambda: [random.randint(1, num_sides) for _ in range(num_dice)]
+
+                rolls = []
+                if suffix == '_adv':
+                    rolls1 = roll_once()
+                    rolls2 = roll_once()
+                    if sum(rolls1) >= sum(rolls2):
+                        rolls = rolls1
+                    else:
+                        rolls = rolls2
+                    roll_details.append(f"Advantage on {num_dice}d{num_sides}: Rolled {rolls1} and {rolls2}, chose {rolls}.")
+                elif suffix == '_dis':
+                    rolls1 = roll_once()
+                    rolls2 = roll_once()
+                    if sum(rolls1) <= sum(rolls2):
+                        rolls = rolls1
+                    else:
+                        rolls = rolls2
+                    roll_details.append(f"Disadvantage on {num_dice}d{num_sides}: Rolled {rolls1} and {rolls2}, chose {rolls}.")
+                else:  # No suffix, a normal roll
+                    rolls = roll_once()
+
                 value = sum(rolls)
                 all_rolls.extend(rolls)
 
@@ -74,5 +101,6 @@ class DiceRoller:
         return {
             "total": total,
             "rolls": all_rolls,
-            "modifier": sum(modifier_parts)
+            "modifier": sum(modifier_parts),
+            "details": roll_details
         }

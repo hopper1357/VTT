@@ -81,6 +81,9 @@ class Engine:
         roll_result = self.dice_roller.roll(action.formula, actor, self.entity_manager)
         roll_total = roll_result['total']
         print(f"{actor.attributes.get('name', actor.id)} rolls a {roll_total} for {action.label} (formula: {action.formula}).")
+        if roll_result.get("details"):
+            for detail in roll_result["details"]:
+                print(f"  > {detail}")
 
         # 2. Check for success condition if 'check' is defined
         is_success = True  # Default to success if no check is specified
