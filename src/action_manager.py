@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass
 class Action:
@@ -7,6 +8,7 @@ class Action:
     label: str
     formula: str
     on_success: str = "" # e.g., "damage(target, result.total)"
+    check: Optional[dict] = None
 
 class ActionManager:
     """Manages all actions available in the game session."""
@@ -28,7 +30,8 @@ class ActionManager:
             id=action_data['id'],
             label=action_data.get('label', ''),
             formula=action_data.get('formula', ''),
-            on_success=action_data.get('onSuccess', '') # JS uses camelCase, Python uses snake_case
+            on_success=action_data.get('onSuccess', ''), # JS uses camelCase, Python uses snake_case
+            check=action_data.get('check')
         )
 
         if action.id in self._actions:
