@@ -1,0 +1,148 @@
+import unittest
+import os
+from unittest.mock import patch
+from src.engine import Engine
+
+class TestEngine(unittest.TestCase):
+
+    def setUp(self):
+        self.engine = Engine(modules_directory="modules")
+
+    def test_engine_initialization(self):
+        print("Running test: test_engine_initialization")
+        self.assertIsNotNone(self.engine.get_entity_manager())
+        self.assertIsNotNone(self.engine.get_dice_roller())
+        self.assertIsNotNone(self.engine.get_module_loader())
+        self.assertIsNotNone(self.engine.get_initiative_tracker())
+
+    def test_load_system_module(self):
+        print("Running test: test_load_system_module")
+        module = self.engine.load_system_module("dnd5e")
+        self.assertIsNotNone(module)
+        self.assertEqual(module.id, "dnd5e")
+        self.assertEqual(self.engine.active_module, module)
+
+    @patch('random.randint')
+    def test_roll_with_attributes(self, mock_randint):
+        print("Running test: test_roll_with_attributes")
+        # Mock the d20 roll to always be 10
+        mock_randint.return_value = 10
+
+        em = self.engine.get_entity_manager()
+
+        # Create a character with attributes
+        character = em.create_entity("character", {
+            "str": 14,         # modifier = +2
+            "proficiency": 3
+        })
+
+        expression = "1d20 + @strength_mod + @proficiency"
+        result = self.engine.get_dice_roller().roll(expression, character, em)
+
+        # Expected total: 10 (d20 roll) + 2 (str_mod) + 3 (proficiency) = 15
+        self.assertEqual(result["total"], 15)
+        self.assertEqual(result["rolls"], [10])
+        self.assertEqual(result["modifier"], 5) # 2 (str_mod) + 3 (proficiency)
+
+    def test_action_registration_on_module_load(self):
+        print("Running test: test_action_registration_on_module_load")
+        self.engine.load_system_module("dnd5e")
+
+        action_manager = self.engine.get_action_manager()
+        sword_attack_action = action_manager.get_action("sword_attack")
+
+        self.assertIsNotNone(sword_attack_action)
+        self.assertEqual(sword_attack_action.label, "Sword Attack")
+        self.assertEqual(sword_attack_action.formula, "1d20 + @strength_mod + @proficiency")
+
+    @patch('random.randint')
+    def test_execute_action_damage(self, mock_randint):
+        print("Running test: test_execute_action_damage")
+        # Mock dice rolls: 15 for attack (1d20), 4 for damage (1d8)
+        mock_randint.side_effect = [15, 4]
+
+        self.engine.load_system_module("dnd5e")
+        em = self.engine.get_entity_manager()
+
+        actor = em.create_entity("character", {"name": "Fighter", "str": 16}) # +3 mod
+        target = em.create_entity("npc", {"name": "Goblin", "hp": 10})
+
+        self.engine.execute_action("sword_attack", actor, target)
+
+        # Expected damage = 4 (1d8) + 3 (str_mod) = 7
+        # Expected HP = 10 - 7 = 3
+        self.assertEqual(em.get_attribute(target.id, "hp"), 3)
+
+    def test_initiative_action_is_registered(self):
+        print("Running test: test_initiative_action_is_registered")
+        self.engine.load_system_module("dnd5e")
+
+        action_manager = self.engine.get_action_manager()
+        initiative_action = action_manager.get_action("initiative")
+
+        self.assertIsNotNone(initiative_action)
+        self.assertEqual(initiative_action.formula, "1d20 + @dexterity_mod")
+
+    @patch('random.randint')
+    def test_roll_for_initiative(self, mock_randint):
+        print("Running test: test_roll_for_initiative")
+        # Mock d20 rolls: player rolls 10, npc rolls 15
+        mock_randint.side_effect = [10, 15]
+
+        self.engine.load_system_module("dnd5e")
+        em = self.engine.get_entity_manager()
+        tracker = self.engine.get_initiative_tracker()
+
+        player = em.create_entity("character", {"name": "Player", "dex": 14}) # +2 mod
+        npc = em.create_entity("npc", {"name": "NPC", "dex": 12}) # +1 mod
+
+        tracker.add_combatant(player.id)
+        tracker.add_combatant(npc.id)
+
+        self.engine.roll_for_initiative()
+
+        # Check scores
+        self.assertEqual(tracker.combatants[player.id], 12) # 10 + 2
+        self.assertEqual(tracker.combatants[npc.id], 16) # 15 + 1
+
+        # Check turn order
+        expected_order = [npc.id, player.id]
+        self.assertEqual(tracker.get_turn_order(), expected_order)
+
+    def test_engine_save_and_load(self):
+        print("Running test: test_engine_save_and_load")
+        save_filepath = "engine_test_save.json"
+
+        # 1. Set up an initial engine state
+        self.engine.load_system_module("dnd5e")
+        em = self.engine.get_entity_manager()
+        tracker = self.engine.get_initiative_tracker()
+        player = em.create_entity("character", {"name": "Player", "hp": 20})
+        tracker.add_combatant(player.id, 15)
+
+        # 2. Save the state
+        self.engine.save_game(save_filepath)
+        self.assertTrue(os.path.exists(save_filepath))
+
+        # 3. Create a new engine and load the state
+        new_engine = Engine()
+        load_success = new_engine.load_game(save_filepath)
+        self.assertTrue(load_success)
+
+        # 4. Verify the loaded state
+        self.assertEqual(new_engine.active_module.id, self.engine.active_module.id)
+
+        loaded_em = new_engine.get_entity_manager()
+        loaded_player = loaded_em.get_entity(player.id)
+        self.assertIsNotNone(loaded_player)
+        self.assertEqual(loaded_player.attributes['hp'], 20)
+
+        loaded_tracker = new_engine.get_initiative_tracker()
+        self.assertEqual(loaded_tracker.combatants[player.id], 15)
+
+        # 5. Clean up
+        os.remove(save_filepath)
+
+
+if __name__ == '__main__':
+    unittest.main()

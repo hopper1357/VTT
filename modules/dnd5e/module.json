@@ -1,0 +1,20 @@
+{
+  "id": "dnd5e",
+  "name": "Dungeons & Dragons 5e",
+  "version": "0.1.0",
+  "author": "Jules",
+  "description": "Implements core mechanics for D&D 5e: attacks, saves, attributes, and hit points.",
+  "entry": {
+    "rules": "rules.json",
+    "sheets": "sheets.json",
+    "scripts": [
+      "scripts/actions.js"
+    ],
+    "assets": "assets/"
+  },
+  "dependencies": [],
+  "engine": {
+    "minVersion": "0.1.0"
+  },
+  "tags": ["fantasy", "dnd", "d20"]
+}
