@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 from enum import Enum, auto
 from .map_object import MapObject
 from .token import Token
@@ -16,6 +16,7 @@ class Map:
     height: int
     objects: List[MapObject] = field(default_factory=list)
     grid_type: GridType = GridType.SQUARE
+    background_asset_path: Optional[str] = None
 
     def add_object(self, obj: MapObject):
         """Adds an object to the map."""
@@ -40,6 +41,7 @@ class Map:
             'width': self.width,
             'height': self.height,
             'grid_type': self.grid_type.name,
+            'background_asset_path': self.background_asset_path,
             'objects': [obj.to_dict() for obj in self.objects]
         }
 
@@ -57,7 +59,8 @@ class Map:
             name=data['name'],
             width=data['width'],
             height=data['height'],
-            grid_type=grid_type
+            grid_type=grid_type,
+            background_asset_path=data.get('background_asset_path')
         )
 
         objects_data = data.get('objects', [])

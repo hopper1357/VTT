@@ -38,7 +38,7 @@ class CommandHandler:
         print("  add <name>                    - Adds a character to the initiative tracker.")
         print("  init                          - Rolls initiative for all combatants.")
         print("  attack <target> with <actor>  - Executes an attack.")
-        print("  map create <name> <w> <h> [type=hex] - Creates a new map (default is square).")
+        print("  map create <name> <w> <h> [type=hex] [bg=path] - Creates a new map.")
         print("  map list                      - Lists all created maps.")
         print("  map view <map_name>           - Shows a map with its objects and tokens.")
         print("  token place <entity> <map> <x> <y> [layer=4] - Places an entity's token on a map.")
@@ -188,33 +188,41 @@ class CommandHandler:
         map_manager = self.engine.get_map_manager()
 
         if subcommand == "create":
-            if len(args) < 4:
-                print("Usage: map create <name> <width> <height> [type=square|hex]")
+            if len(args) < 3:
+                print("Usage: map create <name> <width> <height> [type=hex] [bg=path]")
                 return
 
-            name = args[1]
+            # Core arguments
+            name, width_str, height_str = args[1], args[2], args[3]
+
+            # Parse optional arguments
+            optional_args = args[4:]
+            kwargs = {}
+            for arg in optional_args:
+                if '=' in arg:
+                    key, value = arg.split('=', 1)
+                    kwargs[key.lower()] = value
+
             try:
-                width = int(args[2])
-                height = int(args[3])
+                width = int(width_str)
+                height = int(height_str)
             except ValueError:
                 print("Error: Width and height must be integers.")
                 return
 
             from src.map import GridType
             grid_type = GridType.SQUARE
-            if len(args) > 4:
-                type_arg = args[4]
-                if type_arg.lower().startswith("type="):
-                    type_val = type_arg.split('=', 1)[1].upper()
-                    if type_val == 'HEX':
-                        grid_type = GridType.HEX
-                    elif type_val != 'SQUARE':
-                        print(f"Warning: Unknown grid type '{type_val}'. Defaulting to SQUARE.")
-                else:
-                    print(f"Warning: Ignoring unrecognized argument '{type_arg}'.")
+            if 'type' in kwargs:
+                type_val = kwargs['type'].upper()
+                if type_val == 'HEX':
+                    grid_type = GridType.HEX
+                elif type_val != 'SQUARE':
+                    print(f"Warning: Unknown grid type '{kwargs['type']}'. Defaulting to SQUARE.")
+
+            background = kwargs.get('bg')
 
             try:
-                map_manager.create_map(name, width, height, grid_type)
+                map_manager.create_map(name, width, height, grid_type, background)
             except ValueError as e:
                 print(f"Error: {e}")
 
@@ -237,20 +245,24 @@ class CommandHandler:
                 print(f"Error: Map '{map_name}' not found.")
                 return
 
-            # --- Start of New Layered Rendering Logic ---
-            top_objects = {}  # (x, y) -> MapObject
+            # --- Start of Layered Rendering Logic ---
+            top_objects = {}
             for obj in game_map.objects:
                 pos = (obj.x, obj.y)
                 if 0 <= obj.x < game_map.width and 0 <= obj.y < game_map.height:
                     if pos not in top_objects or obj.layer > top_objects[pos].layer:
                         top_objects[pos] = obj
-            # --- End of New Layered Rendering Logic ---
+            # --- End of Layered Rendering Logic ---
 
             em = self.engine.get_entity_manager()
             from src.map import GridType
 
+            title = f"--- Map: {game_map.name} ({game_map.grid_type.name.lower()} grid {game_map.width}x{game_map.height}) ---"
+            if game_map.background_asset_path:
+                title += f"\nBackground: {game_map.background_asset_path}"
+            print(title)
+
             if game_map.grid_type == GridType.SQUARE:
-                print(f"\n--- Map: {game_map.name} (Square Grid {game_map.width}x{game_map.height}) ---")
                 display_grid = [['.' for _ in range(game_map.width)] for _ in range(game_map.height)]
                 for pos, obj in top_objects.items():
                     x, y = pos
@@ -263,7 +275,6 @@ class CommandHandler:
                     print(f"{i}| {' '.join(row)}")
 
             elif game_map.grid_type == GridType.HEX:
-                print(f"\n--- Map: {game_map.name} (Hex Grid {game_map.width}x{game_map.height}) ---")
                 for r in range(game_map.height):
                     row_str = " " * (r % 2)
                     for c in range(game_map.width):

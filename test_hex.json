@@ -2,7 +2,7 @@
     "entity_manager": {
         "entities": [
             {
-                "id": "c7f1dcbe-a549-4111-a4e8-57398b33ce14",
+                "id": "53686f05-44fc-45f9-9889-81ec08129983",
                 "entity_type": "character",
                 "attributes": {
                     "name": "Gandalf"
@@ -20,9 +20,10 @@
                 "width": 8,
                 "height": 4,
                 "grid_type": "HEX",
+                "background_asset_path": null,
                 "objects": [
                     {
-                        "id": "442d7ba2-39cb-407a-826c-463064b84df4",
+                        "id": "84f14046-eef3-4ed6-80e8-47ac41ff6bde",
                         "object_type": "Token",
                         "x": 2,
                         "y": 1,
@@ -30,7 +31,7 @@
                         "display_char": "G",
                         "size": 1,
                         "asset_path": null,
-                        "entity_id": "c7f1dcbe-a549-4111-a4e8-57398b33ce14"
+                        "entity_id": "53686f05-44fc-45f9-9889-81ec08129983"
                     }
                 ]
             }
