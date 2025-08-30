@@ -37,7 +37,7 @@ class CommandHandler:
         print("  add <name>                    - Adds a character to the initiative tracker.")
         print("  init                          - Rolls initiative for all combatants.")
         print("  attack <target> with <actor>  - Executes an attack.")
-        print("  map create <name> <w> <h>     - Creates a new map.")
+        print("  map create <name> <w> <h> [type=hex] - Creates a new map (default is square).")
         print("  map list                      - Lists all created maps.")
         print("  map view <map_name>           - Shows a map with its tokens.")
         print("  token place <entity> <map> <x> <y> - Places an entity's token on a map.")
@@ -185,8 +185,8 @@ class CommandHandler:
         map_manager = self.engine.get_map_manager()
 
         if subcommand == "create":
-            if len(args) != 4:
-                print("Usage: map create <name> <width> <height>")
+            if len(args) < 4:
+                print("Usage: map create <name> <width> <height> [type=square|hex]")
                 return
 
             name = args[1]
@@ -197,8 +197,22 @@ class CommandHandler:
                 print("Error: Width and height must be integers.")
                 return
 
+            # Import here to avoid circular dependency issues at module level
+            from src.map import GridType
+            grid_type = GridType.SQUARE
+            if len(args) > 4:
+                type_arg = args[4]
+                if type_arg.lower().startswith("type="):
+                    type_val = type_arg.split('=', 1)[1].upper()
+                    if type_val == 'HEX':
+                        grid_type = GridType.HEX
+                    elif type_val != 'SQUARE':
+                        print(f"Warning: Unknown grid type '{type_val}'. Defaulting to SQUARE.")
+                else:
+                    print(f"Warning: Ignoring unrecognized argument '{type_arg}'.")
+
             try:
-                map_manager.create_map(name, width, height)
+                map_manager.create_map(name, width, height, grid_type)
             except ValueError as e:
                 print(f"Error: {e}")
 
@@ -221,34 +235,52 @@ class CommandHandler:
                 print(f"Error: Map '{map_name}' not found.")
                 return
 
-            # Create a display grid
-            display_grid = [row[:] for row in game_map.grid]
-
-            # Place tokens on the display grid
             em = self.engine.get_entity_manager()
-            for token in game_map.tokens:
-                if 0 <= token.y < game_map.height and 0 <= token.x < game_map.width:
-                    entity = em.get_entity(token.entity_id)
-                    char = '?'
-                    if entity and entity.attributes.get('name'):
-                        char = entity.attributes['name'][0].upper()
-                    display_grid[token.y][token.x] = char
 
-            # Print the map
-            print(f"\n--- Map: {game_map.name} ({game_map.width}x{game_map.height}) ---")
-            header = "  " + " ".join([str(i) for i in range(game_map.width)])
-            print(header)
-            print("  " + "-" * (game_map.width * 2 - 1))
-            for i, row in enumerate(display_grid):
-                print(f"{i}| {' '.join(row)}")
+            from src.map import GridType
+            if game_map.grid_type == GridType.SQUARE:
+                print(f"\n--- Map: {game_map.name} (Square Grid {game_map.width}x{game_map.height}) ---")
+                display_grid = [['.' for _ in range(game_map.width)] for _ in range(game_map.height)]
+                for token in game_map.tokens:
+                    if 0 <= token.y < game_map.height and 0 <= token.x < game_map.width:
+                        entity = em.get_entity(token.entity_id)
+                        char = '?'
+                        if entity and entity.attributes.get('name'):
+                            char = entity.attributes['name'][0].upper()
+                        display_grid[token.y][token.x] = char
 
-            # Print token list
+                header = "  " + " ".join([str(i) for i in range(game_map.width)])
+                print(header)
+                print("  " + "-" * (game_map.width * 2 - 1))
+                for i, row in enumerate(display_grid):
+                    print(f"{i}| {' '.join(row)}")
+
+            elif game_map.grid_type == GridType.HEX:
+                print(f"\n--- Map: {game_map.name} (Hex Grid {game_map.width}x{game_map.height}) ---")
+                token_map = {(token.x, token.y): token for token in game_map.tokens}
+
+                for r in range(game_map.height):
+                    row_str = " " * (r % 2) # Indent odd rows
+                    for c in range(game_map.width):
+                        token = token_map.get((c, r))
+                        if token:
+                            entity = em.get_entity(token.entity_id)
+                            char = '?'
+                            if entity and entity.attributes.get('name'):
+                                char = entity.attributes['name'][0].upper()
+                            row_str += f"[{char}]"
+                        else:
+                            row_str += "[.]"
+                        row_str += " "
+                    print(row_str)
+
+            # Print token list for all map types
             if game_map.tokens:
                 print("\nTokens on this map:")
                 for token in game_map.tokens:
                     entity = em.get_entity(token.entity_id)
                     name = entity.attributes.get('name', 'Unknown') if entity else 'Unknown'
-                    print(f"  - {name} ({name[0].upper()}) at ({token.x}, {token.y}), ID: {token.id}")
+                    print(f"  - {name} ({name[0].upper()}) at (col={token.x}, row={token.y}), ID: {token.id}")
             print("--------------------")
 
         else:
