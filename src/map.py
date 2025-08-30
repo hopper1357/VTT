@@ -24,8 +24,11 @@ class Map:
             self.objects.append(obj)
 
     def remove_object(self, object_id: str):
-        """Removes an object from the map by its ID."""
+        """Removes an object from the map by its ID. Raises ValueError if not found."""
+        initial_count = len(self.objects)
         self.objects = [o for o in self.objects if o.id != object_id]
+        if len(self.objects) == initial_count:
+            raise ValueError(f"Object with ID '{object_id}' not found on map '{self.name}'.")
 
     def get_object(self, object_id: str):
         """Retrieves an object from the map by its ID."""
