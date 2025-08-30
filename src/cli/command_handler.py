@@ -44,6 +44,7 @@ class CommandHandler:
         print("  token place <entity> <map> <x> <y> [layer=4] - Places an entity's token on a map.")
         print("  object place <char> <map> <x> <y> <layer> - Places a generic object on a map.")
         print("  object move <id> <map> <x> <y> - Moves any object or token to new coordinates.")
+        print("  object remove <id> <map>      - Removes an object or token from a map.")
         print("  save <filepath>               - Saves the game state.")
         print("  load <filepath>               - Loads the game state.")
         print("  exit                          - Exits the application.")
@@ -353,7 +354,7 @@ class CommandHandler:
         """Handles generic object commands."""
         if not args:
             print("Usage: object <subcommand> [...]")
-            print("Available subcommands: place, move")
+            print("Available subcommands: place, move, remove")
             return
 
         subcommand = args[0].lower()
@@ -400,6 +401,18 @@ class CommandHandler:
 
             try:
                 map_manager.move_object(map_name, object_id, x, y)
+            except ValueError as e:
+                print(f"Error: {e}")
+
+        elif subcommand == 'remove':
+            if len(args) != 3:
+                print("Usage: object remove <object_id> <map_name>")
+                return
+
+            object_id, map_name = args[1], args[2]
+
+            try:
+                map_manager.remove_object_from_map(map_name, object_id)
             except ValueError as e:
                 print(f"Error: {e}")
         else:
