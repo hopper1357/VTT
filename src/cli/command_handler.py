@@ -34,6 +34,7 @@ class CommandHandler:
         print("  add <name>                    - Adds a character to the initiative tracker.")
         print("  init                          - Rolls initiative for all combatants.")
         print("  attack <target> with <actor>  - Executes an attack.")
+        print("  map create <name> <w> <h>     - Creates a new map.")
         print("  save <filepath>               - Saves the game state.")
         print("  load <filepath>               - Loads the game state.")
         print("  exit                          - Exits the application.")
@@ -165,3 +166,32 @@ class CommandHandler:
             print(f"Game loaded successfully from {filepath}.")
         else:
             print(f"Failed to load game from {filepath}.")
+
+    def do_map(self, args):
+        """Handles map-related commands. Usage: map <subcommand> [...]"""
+        if not args:
+            print("Usage: map <subcommand> [args...]")
+            print("Available subcommands: create")
+            return
+
+        subcommand = args[0]
+        if subcommand == "create":
+            if len(args) != 4:
+                print("Usage: map create <name> <width> <height>")
+                return
+
+            name = args[1]
+            try:
+                width = int(args[2])
+                height = int(args[3])
+            except ValueError:
+                print("Error: Width and height must be integers.")
+                return
+
+            map_manager = self.engine.get_map_manager()
+            try:
+                map_manager.create_map(name, width, height)
+            except ValueError as e:
+                print(f"Error: {e}")
+        else:
+            print(f"Unknown map command: '{subcommand}'")
