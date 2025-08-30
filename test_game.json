@@ -1,0 +1,107 @@
+{
+    "entity_manager": {
+        "entities": [
+            {
+                "id": "6779daba-37d7-4d0e-ab5e-e6ceb4095347",
+                "entity_type": "character",
+                "attributes": {
+                    "name": "Aragorn",
+                    "hp": 100
+                }
+            },
+            {
+                "id": "6a3a674c-fd91-4800-b28f-b261abf7ee67",
+                "entity_type": "character",
+                "attributes": {
+                    "name": "Sauron",
+                    "hp": 500
+                }
+            }
+        ]
+    },
+    "initiative_tracker": {
+        "combatants": {}
+    },
+    "map_manager": {
+        "maps": {
+            "middle-earth": {
+                "name": "middle-earth",
+                "width": 10,
+                "height": 5,
+                "grid": [
+                    [
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        "."
+                    ],
+                    [
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        "."
+                    ],
+                    [
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        "."
+                    ],
+                    [
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        "."
+                    ],
+                    [
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        ".",
+                        "."
+                    ]
+                ],
+                "tokens": [
+                    {
+                        "id": "fb5a82c2-6c11-4909-af04-3dbcf76df96a",
+                        "entity_id": "6779daba-37d7-4d0e-ab5e-e6ceb4095347",
+                        "x": 2,
+                        "y": 3,
+                        "size": 1,
+                        "asset_path": null
+                    }
+                ]
+            }
+        }
+    },
+    "active_module_id": "dnd5e"
+}

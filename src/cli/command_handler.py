@@ -1,3 +1,6 @@
+from src.token import Token
+
+
 class CommandHandler:
     """Handles the execution of CLI commands."""
 
@@ -35,6 +38,10 @@ class CommandHandler:
         print("  init                          - Rolls initiative for all combatants.")
         print("  attack <target> with <actor>  - Executes an attack.")
         print("  map create <name> <w> <h>     - Creates a new map.")
+        print("  map list                      - Lists all created maps.")
+        print("  map view <map_name>           - Shows a map with its tokens.")
+        print("  token place <entity> <map> <x> <y> - Places an entity's token on a map.")
+        print("  token move <token_id> <map> <x> <y> - Moves a token to new coordinates.")
         print("  save <filepath>               - Saves the game state.")
         print("  load <filepath>               - Loads the game state.")
         print("  exit                          - Exits the application.")
@@ -171,10 +178,12 @@ class CommandHandler:
         """Handles map-related commands. Usage: map <subcommand> [...]"""
         if not args:
             print("Usage: map <subcommand> [args...]")
-            print("Available subcommands: create")
+            print("Available subcommands: create, list, view")
             return
 
-        subcommand = args[0]
+        subcommand = args[0].lower()
+        map_manager = self.engine.get_map_manager()
+
         if subcommand == "create":
             if len(args) != 4:
                 print("Usage: map create <name> <width> <height>")
@@ -188,10 +197,121 @@ class CommandHandler:
                 print("Error: Width and height must be integers.")
                 return
 
-            map_manager = self.engine.get_map_manager()
             try:
                 map_manager.create_map(name, width, height)
             except ValueError as e:
                 print(f"Error: {e}")
+
+        elif subcommand == "list":
+            maps = map_manager.list_maps()
+            if not maps:
+                print("No maps have been created yet.")
+                return
+            print("\nAvailable maps:")
+            for map_name in maps:
+                print(f"  - {map_name}")
+
+        elif subcommand == "view":
+            if len(args) != 2:
+                print("Usage: map view <map_name>")
+                return
+            map_name = args[1]
+            game_map = map_manager.get_map(map_name)
+            if not game_map:
+                print(f"Error: Map '{map_name}' not found.")
+                return
+
+            # Create a display grid
+            display_grid = [row[:] for row in game_map.grid]
+
+            # Place tokens on the display grid
+            em = self.engine.get_entity_manager()
+            for token in game_map.tokens:
+                if 0 <= token.y < game_map.height and 0 <= token.x < game_map.width:
+                    entity = em.get_entity(token.entity_id)
+                    char = '?'
+                    if entity and entity.attributes.get('name'):
+                        char = entity.attributes['name'][0].upper()
+                    display_grid[token.y][token.x] = char
+
+            # Print the map
+            print(f"\n--- Map: {game_map.name} ({game_map.width}x{game_map.height}) ---")
+            header = "  " + " ".join([str(i) for i in range(game_map.width)])
+            print(header)
+            print("  " + "-" * (game_map.width * 2 - 1))
+            for i, row in enumerate(display_grid):
+                print(f"{i}| {' '.join(row)}")
+
+            # Print token list
+            if game_map.tokens:
+                print("\nTokens on this map:")
+                for token in game_map.tokens:
+                    entity = em.get_entity(token.entity_id)
+                    name = entity.attributes.get('name', 'Unknown') if entity else 'Unknown'
+                    print(f"  - {name} ({name[0].upper()}) at ({token.x}, {token.y}), ID: {token.id}")
+            print("--------------------")
+
         else:
             print(f"Unknown map command: '{subcommand}'")
+
+    def do_token(self, args):
+        """Handles token-related commands. Usage: token <subcommand> [...]"""
+        if not args:
+            print("Usage: token <subcommand> [args...]")
+            print("Available subcommands: place, move")
+            return
+
+        subcommand = args[0].lower()
+        map_manager = self.engine.get_map_manager()
+        em = self.engine.get_entity_manager()
+
+        if subcommand == "place":
+            if len(args) != 5:
+                print("Usage: token place <entity_name> <map_name> <x> <y>")
+                return
+
+            entity_name, map_name, x_str, y_str = args[1], args[2], args[3], args[4]
+
+            entity = em.find_entity_by_name(entity_name)
+            if not entity:
+                print(f"Error: Entity '{entity_name}' not found.")
+                return
+
+            game_map = map_manager.get_map(map_name)
+            if not game_map:
+                print(f"Error: Map '{map_name}' not found.")
+                return
+
+            try:
+                x, y = int(x_str), int(y_str)
+            except ValueError:
+                print("Error: X and Y coordinates must be integers.")
+                return
+
+            new_token = Token(entity_id=entity.id, x=x, y=y)
+
+            try:
+                map_manager.add_token_to_map(map_name, new_token)
+                print(f"Placed token for '{entity_name}' on map '{map_name}' at ({x},{y}). Token ID: {new_token.id}")
+            except ValueError as e:
+                print(f"Error: {e}")
+
+        elif subcommand == "move":
+            if len(args) != 5:
+                print("Usage: token move <token_id> <map_name> <x> <y>")
+                return
+
+            token_id, map_name, x_str, y_str = args[1], args[2], args[3], args[4]
+
+            try:
+                x, y = int(x_str), int(y_str)
+            except ValueError:
+                print("Error: X and Y coordinates must be integers.")
+                return
+
+            try:
+                map_manager.move_token(map_name, token_id, x, y)
+            except ValueError as e:
+                print(f"Error: {e}")
+        else:
+            print(f"Unknown token command: '{subcommand}'")
