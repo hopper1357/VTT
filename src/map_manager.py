@@ -6,14 +6,22 @@ class MapManager:
     def __init__(self):
         self._maps = {}
 
-    def create_map(self, name, width, height, grid_type=GridType.SQUARE):
+    def create_map(self, name, width, height, grid_type=GridType.SQUARE, background=None):
         """Creates a new map and adds it to the manager."""
         if name in self._maps:
             raise ValueError(f"A map with the name '{name}' already exists.")
 
-        new_map = Map(name=name, width=width, height=height, grid_type=grid_type)
+        new_map = Map(
+            name=name,
+            width=width,
+            height=height,
+            grid_type=grid_type,
+            background_asset_path=background
+        )
         self._maps[name] = new_map
         print(f"Created new {grid_type.name.lower()} map '{name}' of size {width}x{height}.")
+        if background:
+            print(f"  with background: {background}")
         return new_map
 
     def get_map(self, name):

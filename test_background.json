@@ -1,0 +1,21 @@
+{
+    "entity_manager": {
+        "entities": []
+    },
+    "initiative_tracker": {
+        "combatants": {}
+    },
+    "map_manager": {
+        "maps": {
+            "road_map": {
+                "name": "road_map",
+                "width": 10,
+                "height": 5,
+                "grid_type": "SQUARE",
+                "background_asset_path": "StraightRoadPublicJPG.jpg",
+                "objects": []
+            }
+        }
+    },
+    "active_module_id": "dnd5e"
+}
