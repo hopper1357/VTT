@@ -19,6 +19,7 @@ class PersistenceManager:
         game_state = {
             'entity_manager': engine.get_entity_manager().to_dict(),
             'initiative_tracker': engine.get_initiative_tracker().to_dict(),
+            'map_manager': engine.get_map_manager().to_dict(),
             'active_module_id': engine.active_module.id if engine.active_module else None
         }
         return game_state

@@ -165,5 +165,9 @@ class Engine:
         if 'initiative_tracker' in game_state:
             self.initiative_tracker.load_from_dict(game_state['initiative_tracker'])
 
+        # Restore map manager
+        if 'map_manager' in game_state:
+            self.map_manager.from_dict(game_state['map_manager'])
+
         print("Game state successfully loaded and restored.")
         return True

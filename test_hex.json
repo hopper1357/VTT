@@ -1,0 +1,37 @@
+{
+    "entity_manager": {
+        "entities": [
+            {
+                "id": "a104d3ff-5cdf-4090-9dbf-b4336f5a5a2e",
+                "entity_type": "character",
+                "attributes": {
+                    "name": "Gandalf"
+                }
+            }
+        ]
+    },
+    "initiative_tracker": {
+        "combatants": {}
+    },
+    "map_manager": {
+        "maps": {
+            "hextest": {
+                "name": "hextest",
+                "width": 8,
+                "height": 4,
+                "grid_type": "HEX",
+                "tokens": [
+                    {
+                        "id": "64ba07c4-15e8-4160-ac88-cb1ba80986dc",
+                        "entity_id": "a104d3ff-5cdf-4090-9dbf-b4336f5a5a2e",
+                        "x": 2,
+                        "y": 1,
+                        "size": 1,
+                        "asset_path": null
+                    }
+                ]
+            }
+        }
+    },
+    "active_module_id": "dnd5e"
+}
