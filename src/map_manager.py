@@ -1,9 +1,8 @@
 from .map import Map, GridType
-from .token import Token
-
+from .map_object import MapObject
 
 class MapManager:
-    """Manages all game maps and the tokens on them."""
+    """Manages all game maps and the objects on them."""
     def __init__(self):
         self._maps = {}
 
@@ -21,42 +20,42 @@ class MapManager:
         """Retrieves a map by its name."""
         return self._maps.get(name)
 
-    def add_token_to_map(self, map_name: str, token: Token):
-        """Adds a token to the specified map."""
+    def add_object_to_map(self, map_name: str, obj: MapObject):
+        """Adds an object to the specified map."""
         game_map = self.get_map(map_name)
         if not game_map:
             raise ValueError(f"Map '{map_name}' not found.")
-        game_map.add_token(token)
-        print(f"Added token {token.id} to map '{map_name}'.")
+        game_map.add_object(obj)
+        print(f"Added object {obj.id} to map '{map_name}'.")
 
-    def remove_token_from_map(self, map_name: str, token_id: str):
-        """Removes a token from the specified map."""
+    def remove_object_from_map(self, map_name: str, object_id: str):
+        """Removes an object from the specified map."""
         game_map = self.get_map(map_name)
         if not game_map:
             raise ValueError(f"Map '{map_name}' not found.")
-        game_map.remove_token(token_id)
-        print(f"Removed token {token_id} from map '{map_name}'.")
+        game_map.remove_object(object_id)
+        print(f"Removed object {object_id} from map '{map_name}'.")
 
-    def get_tokens_on_map(self, map_name: str):
-        """Retrieves all tokens on a given map."""
+    def get_objects_on_map(self, map_name: str):
+        """Retrieves all objects on a given map."""
         game_map = self.get_map(map_name)
         if not game_map:
             raise ValueError(f"Map '{map_name}' not found.")
-        return game_map.tokens
+        return game_map.objects
 
-    def move_token(self, map_name: str, token_id: str, new_x: int, new_y: int):
-        """Moves a token on a specified map to new coordinates."""
+    def move_object(self, map_name: str, object_id: str, new_x: int, new_y: int):
+        """Moves an object on a specified map to new coordinates."""
         game_map = self.get_map(map_name)
         if not game_map:
             raise ValueError(f"Map '{map_name}' not found.")
 
-        token_to_move = game_map.get_token(token_id)
-        if not token_to_move:
-            raise ValueError(f"Token '{token_id}' not found on map '{map_name}'.")
+        obj_to_move = game_map.get_object(object_id)
+        if not obj_to_move:
+            raise ValueError(f"Object '{object_id}' not found on map '{map_name}'.")
 
-        token_to_move.x = new_x
-        token_to_move.y = new_y
-        print(f"Moved token {token_id} to ({new_x}, {new_y}) on map '{map_name}'.")
+        obj_to_move.x = new_x
+        obj_to_move.y = new_y
+        print(f"Moved object {object_id} to ({new_x}, {new_y}) on map '{map_name}'.")
 
     def to_dict(self):
         """Returns a serializable dictionary representation of the map manager."""
