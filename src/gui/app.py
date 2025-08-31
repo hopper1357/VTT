@@ -83,6 +83,7 @@ class App:
                                                               text='Add to Initiative',
                                                               manager=self.ui_manager,
                                                               container=init_panel)
+        self.add_to_init_button.disable()
 
         self.roll_init_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(10, 260, 160, 30),
                                                             text='Roll Initiative',
@@ -153,11 +154,13 @@ class App:
             self._update_char_list()
             self._update_init_list()
 
-            # Enable/disable place token button
+            # Enable/disable place token and add to init buttons
             if self.char_list.get_single_selection():
                 self.place_token_button.enable()
+                self.add_to_init_button.enable()
             else:
                 self.place_token_button.disable()
+                self.add_to_init_button.disable()
 
             pygame.display.flip()
 
