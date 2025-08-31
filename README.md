@@ -6,6 +6,16 @@ This project is a backend engine for a modular Virtual Tabletop (VTT) designed t
 
 ## How to Run
 
+The application can be run in single-player or multiplayer mode.
+
+### Single-Player (Local)
+
+The `local` mode is not yet implemented in the new architecture.
+
+### Multiplayer
+
+See the [Multiplayer Guide](#multiplayer-guide) section below.
+=======
 The application is run through the `main.py` script. It accepts a series of commands from standard input.
 
 You can run a script of commands like this:
@@ -19,6 +29,7 @@ python3 main.py
 > create char Player hp=20
 > ...
 ```
+
 
 ## Command Reference
 
@@ -45,6 +56,7 @@ The following commands are available in the CLI:
 - `object place <char> <map> <x> <y> <layer>`: Places a generic map object represented by a single character on the map.
 - `object move <id> <map> <x> <y>`: Moves an existing object or token to new coordinates.
 - `object remove <id> <map>`: Removes an object or token from a map using its unique ID.
+=======
 
 ### Drawing & Grouping Commands
 - `shape place <type> <map> <x> <y> [opts]`: Places a shape on a map. Optional arguments (`[opts]`) can be `layer=N`, `size=N`, `stroke_color=#hex`, `fill_color=#hex`, `opacity=0.N`, etc.
@@ -78,39 +90,39 @@ Run the script with:
 python3 main.py < commands.txt
 ```
 =======
-This is a command-line based, modular virtual tabletop application designed to be system-agnostic.
+This is a command-line based, modular virtual tabletop application designed to be system-agnosti
 
 ## Multiplayer Guide
 
-This VTT now supports a client-server multiplayer model. One player acts as the **Game Master (GM)**, who hosts the session and has full control. Other players can connect as **Players**, who have limited permissions.
+This VTT supports a client-server multiplayer model. One player acts as the **Game Master (GM)**, who hosts the session and has full control. Other players can connect as **Players**, who have limited permissions.
 
 ### Starting a Session (GM)
 
 To host a game, you must start the application in `host` mode. Choose a port for other players to connect to.
 
 ```bash
-python main.py host <port>
+python3 main.py host <port>
 ```
 
 Example:
 ```bash
-python main.py host 8888
+python3 main.py host 8888
 ```
-This will start the server and give you a command prompt. You are now the GM.
+This will start the server. The GM must then connect using a separate client instance.
 
 ### Joining a Session (Player)
 
 To join an existing game, you need the IP address and port of the GM's session. Start the application in `connect` mode.
 
 ```bash
-python main.py connect <ip_address> <port>
+python3 main.py connect <ip_address> <port>
 ```
 
 Example:
 ```bash
-python main.py connect 127.0.0.1 8888
+python3 main.py connect 127.0.0.1 8888
 ```
-This will connect you to the session. You will receive the current game state automatically.
+This will connect you to the session. You will receive the current game state automatically. The first user to connect is the GM.
 
 ### Multiplayer Commands
 
@@ -120,8 +132,8 @@ There are several new commands to manage the multiplayer session:
     ```
     > players
     --- Connected Players ---
-      - GameMaster (GM)
-      - Player-54321 (PLAYER)
+      - Player-some_id (GM)
+      - Player-another_id (PLAYER)
     -------------------------
     ```
 
@@ -131,6 +143,6 @@ There are several new commands to manage the multiplayer session:
 
     Example:
     ```
-    > assign Goblin to Player-54321
+    > assign Goblin to Player-another_id
     ```
-    After this, "Player-54321" will be able to move the "Goblin" token. Players can also move any token whose owner is set to `ALL_PLAYERS`.
+    After this, the player will be able to move the "Goblin" token. Players can also move any token whose owner is set to `ALL_PLAYERS`.
