@@ -37,7 +37,7 @@ class App:
 
         info_panel_rect = pygame.Rect(10, self.height - 160, 300, 150)
         info_panel = pygame_gui.elements.UIPanel(relative_rect=info_panel_rect,
-                                                  starting_layer_height=1,
+                                                  starting_height=1,
                                                   manager=self.ui_manager)
 
         self.info_text_box = pygame_gui.elements.UITextBox(html_text="No object selected.",
@@ -47,7 +47,7 @@ class App:
 
         char_panel_rect = pygame.Rect(self.width - 210, 60, 200, 300)
         char_panel = pygame_gui.elements.UIPanel(relative_rect=char_panel_rect,
-                                                  starting_layer_height=1,
+                                                  starting_height=1,
                                                   manager=self.ui_manager)
 
         self.char_list = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect(0, 0, 180, 200),
@@ -62,7 +62,7 @@ class App:
 
         init_panel_rect = pygame.Rect(self.width - 210, 370, 200, 300)
         init_panel = pygame_gui.elements.UIPanel(relative_rect=init_panel_rect,
-                                                 starting_layer_height=1,
+                                                 starting_height=1,
                                                  manager=self.ui_manager)
 
         self.init_list = pygame_gui.elements.UISelectionList(relative_rect=pygame.Rect(0, 0, 180, 200),
