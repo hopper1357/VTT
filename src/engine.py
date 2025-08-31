@@ -25,12 +25,6 @@ class Engine:
         self.active_module = None
         self.current_user = None
 
-        # For now, create a default GM user. This will be replaced
-        # by the networking logic later.
-        gm_user = User("GameMaster", UserRole.GM)
-        self.user_manager.add_user(gm_user)
-        self.current_user = gm_user
-
     def get_command_handler(self):
         return self.command_handler
 
