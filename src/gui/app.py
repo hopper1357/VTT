@@ -6,6 +6,7 @@ class App:
     """The main GUI application."""
 
     def __init__(self, engine):
+        pygame.init()
         self.engine = engine
         self.is_running = False
         self.screen = None
@@ -23,7 +24,6 @@ class App:
 
     def run(self):
         """Starts the main application loop."""
-        pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption("Modular VTT")
         self.clock = pygame.time.Clock()
