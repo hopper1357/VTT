@@ -48,3 +48,27 @@ class PersistenceManager:
         except (IOError, json.JSONDecodeError) as e:
             print(f"Error loading game from {filepath}: {e}")
             return None
+
+    def restore_game_state(self, engine, game_state):
+        """Restores the engine's state from a dictionary."""
+        if not game_state:
+            return False
+
+        # Restore active module
+        if game_state.get('active_module_id'):
+            engine.load_system_module(game_state['active_module_id'])
+
+        # Restore entities
+        if 'entity_manager' in game_state:
+            engine.entity_manager.load_from_dict(game_state['entity_manager'])
+
+        # Restore initiative
+        if 'initiative_tracker' in game_state:
+            engine.initiative_tracker.load_from_dict(game_state['initiative_tracker'])
+
+        # Restore map manager
+        if 'map_manager' in game_state:
+            engine.map_manager.from_dict(game_state['map_manager'])
+
+        print("Game state successfully restored.")
+        return True

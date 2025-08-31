@@ -5,6 +5,7 @@ from .map_object import MapObject
 class Token(MapObject):
     """A MapObject that is linked to a specific game entity."""
     entity_id: str = None
+    owner_id: str = None # User ID of the owner, or "ALL_PLAYERS"
 
     def __post_init__(self):
         """Ensure that an entity_id is always provided."""
@@ -15,6 +16,7 @@ class Token(MapObject):
         """Returns a serializable dictionary representation of the token."""
         data = super().to_dict()
         data['entity_id'] = self.entity_id
+        data['owner_id'] = self.owner_id
         return data
 
     @classmethod
@@ -22,10 +24,12 @@ class Token(MapObject):
         """Creates a Token from a dictionary."""
         # We need to extract the args for the parent and for the child.
         entity_id = data['entity_id']
+        owner_id = data.get('owner_id')
 
         # We call the constructor with all arguments.
         token = cls(
             entity_id=entity_id,
+            owner_id=owner_id,
             x=data['x'],
             y=data['y'],
             layer=data.get('layer', 4),
