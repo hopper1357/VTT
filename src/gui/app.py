@@ -18,6 +18,8 @@ class App:
         self.create_char_window = None
         self.char_name_input = None
         self.char_hp_input = None
+        self.is_placing_token = False
+        self.token_to_place_id = None
 
         # Create a default map for testing
         self.engine.get_command_handler().parse_and_handle("map create testmap 20 15")
@@ -60,6 +62,13 @@ class App:
                                                                manager=self.ui_manager,
                                                                container=char_panel)
 
+        self.place_token_button = pygame_gui.elements.UIButton(relative_rect=pygame.Rect(10, 260, 160, 30),
+                                                                text='Place Token',
+                                                                manager=self.ui_manager,
+                                                                container=char_panel)
+        self.place_token_button.disable()
+
+
         init_panel_rect = pygame.Rect(self.width - 210, 370, 200, 300)
         init_panel = pygame_gui.elements.UIPanel(relative_rect=init_panel_rect,
                                                  starting_height=1,
@@ -101,6 +110,8 @@ class App:
                         self._handle_add_to_initiative()
                     elif event.ui_element == self.roll_init_button:
                         self.engine.get_command_handler().parse_and_handle("init")
+                    elif event.ui_element == self.place_token_button:
+                        self._enter_placing_mode()
 
                 if event.type == pygame_gui.UI_WINDOW_CLOSE:
                     if event.ui_element == self.create_char_window:
@@ -142,9 +153,25 @@ class App:
             self._update_char_list()
             self._update_init_list()
 
+            # Enable/disable place token button
+            if self.char_list.get_single_selection():
+                self.place_token_button.enable()
+            else:
+                self.place_token_button.disable()
+
             pygame.display.flip()
 
         pygame.quit()
+
+    def _enter_placing_mode(self):
+        """Enters token placing mode."""
+        selection = self.char_list.get_single_selection()
+        if selection:
+            self.is_placing_token = True
+            self.token_to_place_id = selection[1]
+            print(f"Placing token for character ID: {self.token_to_place_id}. Click on the map to place.")
+            # Optional: Change cursor
+            # pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_CROSSHAIR)
 
     def _handle_add_to_initiative(self):
         selection = self.char_list.get_single_selection()

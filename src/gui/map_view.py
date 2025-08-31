@@ -21,21 +21,24 @@ class MapView(View):
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1: # Left click
-                grid_pos = self._pixel_to_grid(event.pos)
-                if grid_pos:
-                    active_map = self.map_manager.get_active_map()
-                    if active_map:
-                        found_obj = None
-                        for obj in reversed(active_map.objects):
-                            if (obj.x, obj.y) == grid_pos:
-                                found_obj = obj
-                                break
-                        self.selected_object = found_obj
-                        self.dragged_object = found_obj
-                        if self.selected_object:
-                            print(f"Selected object: {self.selected_object.id} at {grid_pos}")
-                        else:
-                            print(f"No object at {grid_pos}")
+                if self.app.is_placing_token:
+                    self._handle_token_placement(event.pos)
+                else:
+                    grid_pos = self._pixel_to_grid(event.pos)
+                    if grid_pos:
+                        active_map = self.map_manager.get_active_map()
+                        if active_map:
+                            found_obj = None
+                            for obj in reversed(active_map.objects):
+                                if (obj.x, obj.y) == grid_pos:
+                                    found_obj = obj
+                                    break
+                            self.selected_object = found_obj
+                            self.dragged_object = found_obj
+                            if self.selected_object:
+                                print(f"Selected object: {self.selected_object.id} at {grid_pos}")
+                            else:
+                                print(f"No object at {grid_pos}")
 
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
@@ -185,3 +188,33 @@ class MapView(View):
             s = -q - r
 
         return Hex(q, r, s)
+
+    def _handle_token_placement(self, pixel_pos):
+        """Handles placing a token on the map."""
+        grid_pos = self._pixel_to_grid(pixel_pos)
+        if not grid_pos:
+            return
+
+        active_map = self.map_manager.get_active_map()
+        if not active_map:
+            return
+
+        entity_id = self.app.token_to_place_id
+        em = self.app.engine.get_entity_manager()
+        entity = em.get_entity(entity_id)
+        if not entity:
+            return
+
+        char_name = entity.attributes.get('name', '')
+        x, y = grid_pos[0], grid_pos[1]
+
+        command = f"token place {char_name} {active_map.name} {x} {y}"
+        self.app.engine.get_command_handler().parse_and_handle(command)
+
+        print(f"Placed token for {char_name} at {grid_pos}")
+
+        # Exit placing mode
+        self.app.is_placing_token = False
+        self.app.token_to_place_id = None
+        # Optional: Reset cursor
+        # pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
