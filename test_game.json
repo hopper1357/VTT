@@ -2,7 +2,7 @@
     "entity_manager": {
         "entities": [
             {
-                "id": "2f6b15f6-1982-47b0-aebc-ba5e16060ac1",
+                "id": "3080e67c-48ea-4ae2-9e33-7297e8ae2449",
                 "entity_type": "character",
                 "attributes": {
                     "name": "Aragorn",
@@ -10,7 +10,7 @@
                 }
             },
             {
-                "id": "5adb3a93-22b6-45a1-a33b-146e2e0b6a8e",
+                "id": "5e892bad-4081-41be-8994-5e749e41b2d9",
                 "entity_type": "character",
                 "attributes": {
                     "name": "Sauron",
@@ -32,7 +32,7 @@
                 "background_asset_path": null,
                 "objects": [
                     {
-                        "id": "48c832c5-ac8f-4499-97c7-14e9bbdd38c9",
+                        "id": "2f4bec94-5ce3-4d2e-ade9-b23bbe1100d2",
                         "object_type": "Token",
                         "x": 2,
                         "y": 3,
@@ -40,7 +40,9 @@
                         "display_char": "A",
                         "size": 1,
                         "asset_path": null,
-                        "entity_id": "2f6b15f6-1982-47b0-aebc-ba5e16060ac1"
+                        "blocks_light": false,
+                        "light_radius": null,
+                        "entity_id": "3080e67c-48ea-4ae2-9e33-7297e8ae2449"
                     }
                 ]
             }

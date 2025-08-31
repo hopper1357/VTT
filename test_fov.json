@@ -1,0 +1,55 @@
+{
+    "entity_manager": {
+        "entities": [
+            {
+                "id": "cc7c5049-ad09-4ce2-ae9b-7f88b04523e7",
+                "entity_type": "character",
+                "attributes": {
+                    "name": "Player"
+                }
+            }
+        ]
+    },
+    "initiative_tracker": {
+        "combatants": {}
+    },
+    "map_manager": {
+        "maps": {
+            "dungeon": {
+                "name": "dungeon",
+                "width": 10,
+                "height": 10,
+                "grid_type": "SQUARE",
+                "background_asset_path": null,
+                "objects": [
+                    {
+                        "id": "1c90ec63-38e7-4931-ad37-4e07b5a9ccc4",
+                        "object_type": "MapObject",
+                        "x": 5,
+                        "y": 5,
+                        "layer": 1,
+                        "display_char": "#",
+                        "size": 1,
+                        "asset_path": null,
+                        "blocks_light": true,
+                        "light_radius": null
+                    },
+                    {
+                        "id": "ca66bcae-a17e-4c6d-aacd-373282ac5817",
+                        "object_type": "Token",
+                        "x": 3,
+                        "y": 5,
+                        "layer": 4,
+                        "display_char": "P",
+                        "size": 1,
+                        "asset_path": null,
+                        "blocks_light": false,
+                        "light_radius": 5,
+                        "entity_id": "cc7c5049-ad09-4ce2-ae9b-7f88b04523e7"
+                    }
+                ]
+            }
+        }
+    },
+    "active_module_id": "dnd5e"
+}
