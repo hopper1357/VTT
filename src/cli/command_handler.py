@@ -3,13 +3,33 @@ from src.map_object import MapObject
 import src.fov as fov
 
 
+from .parser import CommandParser
+from functools import wraps
+from src.user import UserRole
+
+def gm_only(func):
+    """Decorator to restrict a command to the Game Master."""
+    @wraps(func)
+    def wrapper(self, args):
+        if self.engine.current_user.role != UserRole.GM:
+            print("Error: This command can only be used by the Game Master.")
+            return
+        return func(self, args)
+    return wrapper
+
 class CommandHandler:
     """Handles the execution of CLI commands."""
 
     def __init__(self, engine):
         self.engine = engine
-        # Using getattr is more extensible than a map for many commands.
-        # The command 'create' will call the method 'do_create'.
+        self.parser = CommandParser()
+
+    def parse_and_handle(self, input_string):
+        """Parses a string and handles the resulting command."""
+        command, args = self.parser.parse(input_string)
+        if command:
+            return self.handle_command(command, args)
+        return False
 
     def handle_command(self, command, args):
         """
@@ -48,7 +68,61 @@ class CommandHandler:
         print("  object remove <id> <map>      - Removes an object or token from a map.")
         print("  save <filepath>               - Saves the game state.")
         print("  load <filepath>               - Loads the game state.")
+        print("  players                       - Lists connected players.")
+        print("  assign <token> to <player>    - (GM only) Assigns a token to a player.")
         print("  exit                          - Exits the application.")
+
+    def do_players(self, args):
+        """Lists the currently connected players."""
+        user_manager = self.engine.get_user_manager()
+        users = user_manager.list_users()
+        print("\n--- Connected Players ---")
+        if not users:
+            print("No one is connected.")
+            return
+
+        for user in users:
+            role = f"({user.role.name})"
+            print(f"  - {user.username} {role}")
+        print("-------------------------")
+
+    @gm_only
+    def do_assign(self, args):
+        """Assigns a token to a player. Usage: assign <token_name> to <player_name>"""
+        if len(args) != 3 or args[1].lower() != 'to':
+            print("Usage: assign <token_name> to <player_name>")
+            return
+
+        token_name, player_name = args[0], args[2]
+
+        em = self.engine.get_entity_manager()
+        entity = em.find_entity_by_name(token_name)
+        if not entity:
+            print(f"Error: Entity '{token_name}' not found.")
+            return
+
+        user_manager = self.engine.get_user_manager()
+        player = user_manager.find_user_by_name(player_name)
+        if not player:
+            print(f"Error: Player '{player_name}' not found.")
+            return
+
+        # Find the token on any map
+        map_manager = self.engine.get_map_manager()
+        token_found = False
+        for map_name in map_manager.list_maps():
+            game_map = map_manager.get_map(map_name)
+            for obj in game_map.objects:
+                if isinstance(obj, Token) and obj.entity_id == entity.id:
+                    obj.owner_id = player.id
+                    token_found = True
+                    print(f"Assigned token '{token_name}' to player '{player_name}'.")
+                    break
+            if token_found:
+                break
+
+        if not token_found:
+            print(f"Error: Token for entity '{token_name}' not found on any map.")
 
     # ... (status, create, add, init, attack, save, load methods are unchanged) ...
     def do_status(self, args):
@@ -79,6 +153,7 @@ class CommandHandler:
                      hp = entity.attributes.get('hp', 'N/A')
                      print(f"  - {entity.attributes.get('name', entity_id)} (HP: {hp})")
 
+    @gm_only
     def do_create(self, args):
         """Creates a new entity. Usage: create char <name> [attr=value]..."""
         if len(args) < 2 or args[0].lower() != 'char':
@@ -321,14 +396,15 @@ class CommandHandler:
         # ... (implementation to be added)
         pass
 
+    @gm_only
     def do_token(self, args):
         """Handles token-related commands."""
         if not args or args[0].lower() != 'place':
-            print("Usage: token place <entity> <map> <x> <y> [layer=4] [light=R] [blocks=T/F]")
+            print("Usage: token place <entity> <map> <x> <y> [owner=username|ALL_PLAYERS] [layer=4] ...")
             return
 
         if len(args) < 5:
-            print("Usage: token place <entity> <map> <x> <y> [layer=4] [light=R] [blocks=T/F]")
+            print("Usage: token place <entity> <map> <x> <y> [owner=username|ALL_PLAYERS] [layer=4] ...")
             return
 
         entity_name, map_name, x_str, y_str = args[1], args[2], args[3], args[4]
@@ -345,6 +421,19 @@ class CommandHandler:
             print(f"Error: Map '{map_name}' not found.")
             return
 
+        owner_id = None
+        if 'owner' in kwargs:
+            owner_name = kwargs['owner']
+            if owner_name.lower() == 'all_players':
+                owner_id = 'ALL_PLAYERS'
+            else:
+                user_manager = self.engine.get_user_manager()
+                owner = user_manager.find_user_by_name(owner_name)
+                if not owner:
+                    print(f"Error: Owner user '{owner_name}' not found.")
+                    return
+                owner_id = owner.id
+
         try:
             x, y = int(x_str), int(y_str)
             layer = int(kwargs.get('layer', 4))
@@ -358,7 +447,7 @@ class CommandHandler:
 
         new_token = Token(
             entity_id=entity.id, x=x, y=y, layer=layer, display_char=display_char,
-            light_radius=light_radius, blocks_light=blocks_light
+            light_radius=light_radius, blocks_light=blocks_light, owner_id=owner_id
         )
 
         map_manager.add_object_to_map(map_name, new_token)
@@ -411,6 +500,29 @@ class CommandHandler:
                 return
 
             object_id, map_name, x_str, y_str = args[1], args[2], args[3], args[4]
+
+            game_map = map_manager.get_map(map_name)
+            if not game_map:
+                print(f"Error: Map '{map_name}' not found.")
+                return
+
+            obj_to_move = game_map.get_object(object_id)
+            if not obj_to_move:
+                print(f"Error: Object with ID '{object_id}' not found on map '{map_name}'.")
+                return
+
+            # Permission Check
+            current_user = self.engine.current_user
+            can_move = False
+            if current_user.role == UserRole.GM:
+                can_move = True
+            elif isinstance(obj_to_move, Token):
+                if obj_to_move.owner_id == 'ALL_PLAYERS' or obj_to_move.owner_id == current_user.id:
+                    can_move = True
+
+            if not can_move:
+                print("Error: You do not have permission to move this object.")
+                return
 
             try:
                 x, y = int(x_str), int(y_str)

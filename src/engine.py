@@ -6,6 +6,8 @@ from .action_manager import ActionManager
 from .initiative import InitiativeTracker
 from .persistence import PersistenceManager
 from .map_manager import MapManager
+from .user import UserManager, User, UserRole
+from .cli.command_handler import CommandHandler
 
 class Engine:
     """The main VTT engine."""
@@ -18,7 +20,19 @@ class Engine:
         self.initiative_tracker = InitiativeTracker()
         self.persistence_manager = PersistenceManager()
         self.map_manager = MapManager()
+        self.user_manager = UserManager()
+        self.command_handler = CommandHandler(self)
         self.active_module = None
+        self.current_user = None
+
+        # For now, create a default GM user. This will be replaced
+        # by the networking logic later.
+        gm_user = User("GameMaster", UserRole.GM)
+        self.user_manager.add_user(gm_user)
+        self.current_user = gm_user
+
+    def get_command_handler(self):
+        return self.command_handler
 
     def load_system_module(self, module_id):
         """Loads a system module and sets it as the active module."""
@@ -43,6 +57,9 @@ class Engine:
 
     def get_map_manager(self):
         return self.map_manager
+
+    def get_user_manager(self):
+        return self.user_manager
 
     def roll_for_initiative(self):
         """
@@ -152,22 +169,8 @@ class Engine:
         game_state = self.persistence_manager.load_game(filepath)
         if game_state is None:
             return False
+        return self.persistence_manager.restore_game_state(self, game_state)
 
-        # Restore active module
-        if game_state.get('active_module_id'):
-            self.load_system_module(game_state['active_module_id'])
-
-        # Restore entities
-        if 'entity_manager' in game_state:
-            self.entity_manager.load_from_dict(game_state['entity_manager'])
-
-        # Restore initiative
-        if 'initiative_tracker' in game_state:
-            self.initiative_tracker.load_from_dict(game_state['initiative_tracker'])
-
-        # Restore map manager
-        if 'map_manager' in game_state:
-            self.map_manager.from_dict(game_state['map_manager'])
-
-        print("Game state successfully loaded and restored.")
-        return True
+    def load_game_from_dict(self, game_state):
+        """Loads the game state from a dictionary and restores the engine."""
+        return self.persistence_manager.restore_game_state(self, game_state)
