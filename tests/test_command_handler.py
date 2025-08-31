@@ -3,15 +3,12 @@ from unittest.mock import MagicMock, patch
 from src.cli.command_handler import CommandHandler
 from src.engine import Engine
 from src.entity import Entity
-from src.user import User, UserRole
 
 class TestCommandHandler(unittest.TestCase):
 
     def setUp(self):
         # We use a mock engine to isolate the command handler for testing
         self.mock_engine = MagicMock(spec=Engine)
-        self.mock_engine.current_user = MagicMock(spec=User)
-        self.mock_engine.current_user.role = UserRole.GM
         self.handler = CommandHandler(self.mock_engine)
 
     def test_create_command_simple(self):

@@ -6,7 +6,6 @@ class MapManager:
     """Manages all game maps and the objects on them."""
     def __init__(self):
         self._maps = {}
-        self.active_map_name = None
 
     def create_map(self, name, width, height, grid_type=GridType.SQUARE, background=None):
         """Creates a new map and adds it to the manager."""
@@ -21,24 +20,10 @@ class MapManager:
             background_asset_path=background
         )
         self._maps[name] = new_map
-        self.set_active_map(name)
         print(f"Created new {grid_type.name.lower()} map '{name}' of size {width}x{height}.")
         if background:
             print(f"  with background: {background}")
         return new_map
-
-    def set_active_map(self, name: str):
-        """Sets the currently active map."""
-        if name not in self._maps:
-            raise ValueError(f"Map '{name}' not found.")
-        self.active_map_name = name
-        print(f"Active map set to '{name}'.")
-
-    def get_active_map(self):
-        """Returns the currently active map instance."""
-        if not self.active_map_name:
-            return None
-        return self.get_map(self.active_map_name)
 
     def get_map(self, name):
         """Retrieves a map by its name."""
