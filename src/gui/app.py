@@ -186,12 +186,11 @@ class App:
         """Updates the character list from the engine."""
         em = self.engine.get_entity_manager()
         char_items = []
-        for entity_id, entity in em.entities.items():
-            if entity.entity_type == "character":
-                name = entity.attributes.get('name', 'Unnamed')
-                hp = entity.attributes.get('hp', 'N/A')
-                display_text = f"{name} (HP: {hp})"
-                char_items.append((display_text, entity_id))
+        for entity in em.list_entities(entity_type="character"):
+            name = entity.attributes.get('name', 'Unnamed')
+            hp = entity.attributes.get('hp', 'N/A')
+            display_text = f"{name} (HP: {hp})"
+            char_items.append((display_text, entity.id))
 
         self.char_list.set_item_list(char_items)
 
