@@ -50,10 +50,7 @@ class MapView(View):
 
     def draw(self, screen):
         """Draws the current map on the screen."""
-        map_list = self.map_manager.list_maps()
-        active_map = None
-        if map_list:
-            active_map = self.map_manager.get_map(map_list[0])
+        active_map = self.map_manager.get_active_map()
 
         if not active_map:
             font = pygame.font.Font(None, 48)
