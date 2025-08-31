@@ -111,6 +111,7 @@ class App:
             manager=self.ui_manager,
             container=init_panel
         )
+        self.add_to_init_button.disable()
         self.roll_init_button = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(10, 260, 160, 30),
             text='Roll Initiative',
@@ -154,11 +155,13 @@ class App:
             self._update_char_list()
             self._update_init_list()
 
-            # Enable/disable place token button
+            # Enable/disable place token and add to init buttons
             if self.char_list.get_single_selection():
                 self.place_token_button.enable()
+                self.add_to_init_button.enable()
             else:
                 self.place_token_button.disable()
+                self.add_to_init_button.disable()
 
             pygame.display.flip()
 
@@ -194,6 +197,102 @@ class App:
         else:
             self.info_text_box.set_text("No object selected.")
 
-    # All other helper methods (_enter_placing_mode, _handle_add_to_initiative,
-    # _update_char_list, _update_init_list, _open_create_char_window,
-    # _handle_create_char_submission) remain unchanged.
+    def _enter_placing_mode(self):
+        """Enter token placing mode."""
+        selection = self.char_list.get_single_selection()
+        if selection:
+            self.is_placing_token = True
+            self.token_to_place_id = selection[1]
+            print(f"Placing token for character ID: {self.token_to_place_id}")
+
+    def _handle_add_to_initiative(self):
+        selection = self.char_list.get_single_selection()
+        if selection:
+            entity_id = selection[1]
+            em = self.engine.get_entity_manager()
+            entity = em.get_entity(entity_id)
+            if entity:
+                char_name = entity.attributes.get('name', '')
+                self.engine.get_command_handler().parse_and_handle(f"add {char_name}")
+                print(f"Added {char_name} to initiative.")
+
+    def _update_char_list(self):
+        """Update the character list."""
+        em = self.engine.get_entity_manager()
+        char_items = []
+        for entity in em.list_entities(entity_type="character"):
+            name = entity.attributes.get('name', 'Unnamed')
+            hp = entity.attributes.get('hp', 'N/A')
+            char_items.append((f"{name} (HP: {hp})", entity.id))
+        self.char_list.set_item_list(char_items)
+
+    def _update_init_list(self):
+        """Update the initiative list."""
+        tracker = self.engine.get_initiative_tracker()
+        em = self.engine.get_entity_manager()
+        items = []
+        turn_order = tracker.get_turn_order()
+        for entity_id in turn_order:
+            entity = em.get_entity(entity_id)
+            if entity:
+                score = tracker.combatants.get(entity_id, '??')
+                name = entity.attributes.get('name', 'Unnamed')
+                items.append(f"{score}: {name}")
+        # Add remaining combatants
+        for entity_id in tracker.combatants:
+            if entity_id not in turn_order:
+                entity = em.get_entity(entity_id)
+                if entity:
+                    name = entity.attributes.get('name', 'Unnamed')
+                    items.append(f"??: {name}")
+        self.init_list.set_item_list(items)
+
+    def _open_create_char_window(self):
+        if self.create_char_window:
+            return
+
+        self.create_char_window = pygame_gui.elements.UIWindow(
+            rect=pygame.Rect((self.width // 2 - 150, self.height // 2 - 100), (300, 200)),
+            manager=self.ui_manager,
+            window_display_title='Create Character'
+        )
+        pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect(10, 10, 80, 25),
+            text='Name:',
+            manager=self.ui_manager,
+            container=self.create_char_window
+        )
+        self.char_name_input = pygame_gui.elements.UITextEntryLine(
+            relative_rect=pygame.Rect(100, 10, 150, 25),
+            manager=self.ui_manager,
+            container=self.create_char_window
+        )
+        pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect(10, 50, 80, 25),
+            text='HP:',
+            manager=self.ui_manager,
+            container=self.create_char_window
+        )
+        self.char_hp_input = pygame_gui.elements.UITextEntryLine(
+            relative_rect=pygame.Rect(100, 50, 150, 25),
+            manager=self.ui_manager,
+            container=self.create_char_window
+        )
+        self.create_char_submit_button = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(100, 100, 100, 40),
+            text='Create',
+            manager=self.ui_manager,
+            container=self.create_char_window
+        )
+
+    def _handle_create_char_submission(self):
+        name = self.char_name_input.get_text()
+        hp = self.char_hp_input.get_text()
+        if name:
+            command = f"create char {name}"
+            if hp:
+                command += f" hp={hp}"
+            self.engine.get_command_handler().parse_and_handle(command)
+            print(f"Created character: {name}")
+            self.create_char_window.kill()
+            self.create_char_window = None
