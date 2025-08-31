@@ -1,8 +1,11 @@
 from src.token import Token
 from src.map_object import MapObject
+from src.token import Token
+from src.map_object import MapObject
 from src.shape import Shape, ShapeType
 from src.path import Path
 from src.group import Group
+import src.fov as fov
 
 
 class CommandHandler:
@@ -43,9 +46,9 @@ class CommandHandler:
         print("  attack <target> with <actor>  - Executes an attack.")
         print("  map create <name> <w> <h> [type=hex] [bg=path] - Creates a new map.")
         print("  map list                      - Lists all created maps.")
-        print("  map view <map_name>           - Shows a map with its objects and tokens.")
-        print("  token place <entity> <map> <x> <y> [layer=4] - Places an entity's token on a map.")
-        print("  object place <char> <map> <x> <y> <layer> - Places a generic object on a map.")
+        print("  map view <map> [from=<id>]    - Shows a map. Optionally, view from an object's perspective (FOV).")
+        print("  token place <ent> <map> <x> <y> [layer=4] [light=R] [blocks=T/F] - Places an entity's token.")
+        print("  object place <char> <map> <x> <y> <layer> [light=R] [blocks=T/F] - Places a generic object.")
         print("  object move <id> <map> <x> <y> - Moves any object or token to new coordinates.")
         print("  object remove <id> <map>      - Removes an object or token from a map.")
         print("  shape place <type> <map> <x> <y> [opts] - Places a shape on a map (e.g. fill_color=#ff0000).")
@@ -55,6 +58,7 @@ class CommandHandler:
         print("  load <filepath>               - Loads the game state.")
         print("  exit                          - Exits the application.")
 
+    # ... (status, create, add, init, attack, save, load methods are unchanged) ...
     def do_status(self, args):
         """Displays the current game status."""
         print("\n--- Game Status ---")
@@ -136,8 +140,6 @@ class CommandHandler:
     def do_attack(self, args):
         """Executes an attack. Usage: attack <target> with <actor>"""
         try:
-            # This parsing is simple and rigid. A more complex parser
-            # could be used for more flexible command structures.
             if len(args) != 3 or args[1].lower() != 'with':
                 raise ValueError()
             target_name = args[0]
@@ -157,7 +159,6 @@ class CommandHandler:
             print(f"Error: Target '{target_name}' not found.")
             return
 
-        # For now, we assume the default attack is 'sword_attack'
         print(f"\nExecuting attack from {actor_name} on {target_name}...")
         self.engine.execute_action("sword_attack", actor, target)
 
@@ -183,6 +184,13 @@ class CommandHandler:
         else:
             print(f"Failed to load game from {filepath}.")
 
+    def _parse_kwargs(self, args_list):
+        kwargs = {}
+        for arg in args_list:
+            if '=' in arg:
+                key, value = arg.split('=', 1)
+                kwargs[key.lower()] = value
+        return kwargs
 
     def do_map(self, args):
         """Handles map-related commands. Usage: map <subcommand> [...]"""
@@ -195,24 +203,15 @@ class CommandHandler:
         map_manager = self.engine.get_map_manager()
 
         if subcommand == "create":
-            if len(args) < 3:
+            if len(args) < 4:
                 print("Usage: map create <name> <width> <height> [type=hex] [bg=path]")
                 return
 
-            # Core arguments
             name, width_str, height_str = args[1], args[2], args[3]
-
-            # Parse optional arguments
-            optional_args = args[4:]
-            kwargs = {}
-            for arg in optional_args:
-                if '=' in arg:
-                    key, value = arg.split('=', 1)
-                    kwargs[key.lower()] = value
+            kwargs = self._parse_kwargs(args[4:])
 
             try:
-                width = int(width_str)
-                height = int(height_str)
+                width, height = int(width_str), int(height_str)
             except ValueError:
                 print("Error: Width and height must be integers.")
                 return
@@ -227,11 +226,7 @@ class CommandHandler:
                     print(f"Warning: Unknown grid type '{kwargs['type']}'. Defaulting to SQUARE.")
 
             background = kwargs.get('bg')
-
-            try:
-                map_manager.create_map(name, width, height, grid_type, background)
-            except ValueError as e:
-                print(f"Error: {e}")
+            map_manager.create_map(name, width, height, grid_type, background)
 
         elif subcommand == "list":
             maps = map_manager.list_maps()
@@ -243,23 +238,37 @@ class CommandHandler:
                 print(f"  - {map_name}")
 
         elif subcommand == "view":
-            if len(args) != 2:
-                print("Usage: map view <map_name>")
+            if len(args) < 2:
+                print("Usage: map view <map_name> [from=<id>]")
                 return
+
             map_name = args[1]
+            kwargs = self._parse_kwargs(args[2:])
+            viewer_id = kwargs.get('from')
+
             game_map = map_manager.get_map(map_name)
             if not game_map:
                 print(f"Error: Map '{map_name}' not found.")
                 return
 
-            # --- Start of Layered Rendering Logic ---
+            visible_tiles = None
+            if viewer_id:
+                viewer = game_map.get_object(viewer_id)
+                if not viewer:
+                    print(f"Error: Viewer object with ID '{viewer_id}' not found on map.")
+                    return
+                if viewer.light_radius is None:
+                    print(f"Warning: Object '{viewer_id}' has no light source (light_radius is not set).")
+                    visible_tiles = set()
+                else:
+                    visible_tiles = fov.calculate_fov(game_map, viewer.x, viewer.y, viewer.light_radius)
+
             top_objects = {}
             for obj in game_map.objects:
                 pos = (obj.x, obj.y)
                 if 0 <= obj.x < game_map.width and 0 <= obj.y < game_map.height:
                     if pos not in top_objects or obj.layer > top_objects[pos].layer:
                         top_objects[pos] = obj
-            # --- End of Layered Rendering Logic ---
 
             em = self.engine.get_entity_manager()
             from src.map import GridType
@@ -270,63 +279,68 @@ class CommandHandler:
             print(title)
 
             if game_map.grid_type == GridType.SQUARE:
-                display_grid = [['.' for _ in range(game_map.width)] for _ in range(game_map.height)]
-                for pos, obj in top_objects.items():
-                    x, y = pos
-                    display_grid[y][x] = obj.display_char
-
                 header = "  " + " ".join([str(i) for i in range(game_map.width)])
                 print(header)
                 print("  " + "-" * (game_map.width * 2 - 1))
-                for i, row in enumerate(display_grid):
-                    print(f"{i}| {' '.join(row)}")
+                for y in range(game_map.height):
+                    row_str = f"{y}| "
+                    for x in range(game_map.width):
+                        if visible_tiles is not None and (x, y) not in visible_tiles:
+                            row_str += "  "
+                            continue
+                        obj = top_objects.get((x, y))
+                        row_str += (obj.display_char if obj else ".") + " "
+                    print(row_str.rstrip())
 
             elif game_map.grid_type == GridType.HEX:
                 for r in range(game_map.height):
                     row_str = " " * (r % 2)
                     for c in range(game_map.width):
+                        if visible_tiles is not None and (c, r) not in visible_tiles:
+                            row_str += "   "
+                            continue
                         obj = top_objects.get((c, r))
-                        if obj:
-                            row_str += f"[{obj.display_char}]"
-                        else:
-                            row_str += "[.]"
-                        row_str += " "
+                        row_str += f"[{obj.display_char if obj else '.'}]"
                     print(row_str)
 
             if game_map.objects:
                 print("\nObjects on this map (sorted by layer):")
                 for obj in sorted(game_map.objects, key=lambda o: o.layer):
+                    info = f"at ({obj.x}, {obj.y}), Layer: {obj.layer}"
+                    if obj.light_radius is not None:
+                        info += f", Light: {obj.light_radius}"
+                    if obj.blocks_light:
+                        info += ", Blocks Light"
+                    info += f", ID: {obj.id}"
+
                     if isinstance(obj, Token):
                         entity = em.get_entity(obj.entity_id)
                         name = entity.attributes.get('name', 'Unknown') if entity else 'Unknown'
-                        print(f"  - Token: {name} ('{obj.display_char}') at ({obj.x}, {obj.y}), Layer: {obj.layer}, ID: {obj.id}")
+                        print(f"  - Token: {name} ('{obj.display_char}') {info}")
                     else:
-                        print(f"  - Object: '{obj.display_char}' at ({obj.x}, {obj.y}), Layer: {obj.layer}, ID: {obj.id}")
+                        print(f"  - Object: '{obj.display_char}' {info}")
             print("--------------------")
 
         else:
             print(f"Unknown map command: '{subcommand}'")
 
+    def _create_map_object_from_args(self, args, required_arg_count):
+        """Helper to parse common arguments for object and token placement."""
+        # ... (implementation to be added)
+        pass
 
     def do_token(self, args):
         """Handles token-related commands."""
         if not args or args[0].lower() != 'place':
-            print("Usage: token place <entity_name> <map_name> <x> <y> [layer=4]")
+            print("Usage: token place <entity> <map> <x> <y> [layer=4] [light=R] [blocks=T/F]")
             return
 
         if len(args) < 5:
-            print("Usage: token place <entity_name> <map_name> <x> <y> [layer=4]")
+            print("Usage: token place <entity> <map> <x> <y> [layer=4] [light=R] [blocks=T/F]")
             return
 
         entity_name, map_name, x_str, y_str = args[1], args[2], args[3], args[4]
-
-        layer = 4 # Default token layer
-        if len(args) > 5 and args[5].lower().startswith("layer="):
-            try:
-                layer = int(args[5].split('=')[1])
-            except (ValueError, IndexError):
-                print("Error: Invalid layer value. Must be an integer.")
-                return
+        kwargs = self._parse_kwargs(args[5:])
 
         em = self.engine.get_entity_manager()
         entity = em.find_entity_by_name(entity_name)
@@ -335,26 +349,28 @@ class CommandHandler:
             return
 
         map_manager = self.engine.get_map_manager()
-        game_map = map_manager.get_map(map_name)
-        if not game_map:
+        if not map_manager.get_map(map_name):
             print(f"Error: Map '{map_name}' not found.")
             return
 
         try:
             x, y = int(x_str), int(y_str)
+            layer = int(kwargs.get('layer', 4))
+            light_radius = int(kwargs['light']) if 'light' in kwargs else None
+            blocks_light = kwargs.get('blocks', 'false').lower() in ['true', 't', '1', 'yes']
         except ValueError:
-            print("Error: X and Y coordinates must be integers.")
+            print("Error: x, y, layer, and light radius must be integers.")
             return
 
         display_char = entity.attributes.get('name', '?')[0].upper()
 
-        new_token = Token(entity_id=entity.id, x=x, y=y, layer=layer, display_char=display_char)
+        new_token = Token(
+            entity_id=entity.id, x=x, y=y, layer=layer, display_char=display_char,
+            light_radius=light_radius, blocks_light=blocks_light
+        )
 
-        try:
-            map_manager.add_object_to_map(map_name, new_token)
-            print(f"Placed token for '{entity_name}' on map '{map_name}' at ({x},{y}) on layer {layer}. ID: {new_token.id}")
-        except ValueError as e:
-            print(f"Error: {e}")
+        map_manager.add_object_to_map(map_name, new_token)
+        print(f"Placed token for '{entity_name}' on map '{map_name}' at ({x},{y}). ID: {new_token.id}")
 
     def do_object(self, args):
         """Handles generic object commands."""
@@ -367,30 +383,35 @@ class CommandHandler:
         map_manager = self.engine.get_map_manager()
 
         if subcommand == 'place':
-            if len(args) != 6:
-                print("Usage: object place <char> <map_name> <x> <y> <layer>")
+            if len(args) < 6:
+                print("Usage: object place <char> <map> <x> <y> <layer> [light=R] [blocks=T/F]")
                 return
 
             char, map_name, x_str, y_str, layer_str = args[1], args[2], args[3], args[4], args[5]
+            kwargs = self._parse_kwargs(args[6:])
 
             if len(char) != 1:
                 print("Error: Display character must be a single character.")
                 return
 
-            game_map = map_manager.get_map(map_name)
-            if not game_map:
+            if not map_manager.get_map(map_name):
                 print(f"Error: Map '{map_name}' not found.")
                 return
 
             try:
                 x, y, layer = int(x_str), int(y_str), int(layer_str)
+                light_radius = int(kwargs['light']) if 'light' in kwargs else None
+                blocks_light = kwargs.get('blocks', 'false').lower() in ['true', 't', '1', 'yes']
             except ValueError:
-                print("Error: X, Y, and Layer must be integers.")
+                print("Error: x, y, layer, and light radius must be integers.")
                 return
 
-            new_obj = MapObject(x=x, y=y, layer=layer, display_char=char)
+            new_obj = MapObject(
+                x=x, y=y, layer=layer, display_char=char,
+                light_radius=light_radius, blocks_light=blocks_light
+            )
             map_manager.add_object_to_map(map_name, new_obj)
-            print(f"Placed object '{char}' on map '{map_name}' at ({x},{y}) on layer {layer}. ID: {new_obj.id}")
+            print(f"Placed object '{char}' on map '{map_name}' at ({x},{y}). ID: {new_obj.id}")
 
         elif subcommand == 'move':
             if len(args) != 5:
@@ -405,10 +426,7 @@ class CommandHandler:
                 print("Error: X and Y coordinates must be integers.")
                 return
 
-            try:
-                map_manager.move_object(map_name, object_id, x, y)
-            except ValueError as e:
-                print(f"Error: {e}")
+            map_manager.move_object(map_name, object_id, x, y)
 
         elif subcommand == 'remove':
             if len(args) != 3:
