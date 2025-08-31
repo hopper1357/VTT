@@ -2,6 +2,7 @@ import asyncio
 import sys
 from src.engine import Engine
 from src.network import Server, Client
+from src.gui.app import App
 
 async def handle_user_input(engine, client_or_server=None):
     """Handles user input in a non-blocking way."""
@@ -45,6 +46,7 @@ async def main():
         print("  host <port>   - Start a new session as the Game Master.")
         print("  connect <ip> <port> - Connect to a session as a Player.")
         print("  local         - Run in single-player offline mode.")
+        print("  gui           - Run the graphical user interface.")
         return
 
     mode = sys.argv[1].lower()
@@ -89,6 +91,11 @@ async def main():
     elif mode == "local":
         print("Running in local mode. Type 'help' for commands, 'exit' to quit.")
         await handle_user_input(engine)
+
+    elif mode == "gui":
+        print("Starting the GUI...")
+        gui_app = App(engine)
+        gui_app.run()
 
     else:
         print(f"Unknown mode: '{mode}'")
