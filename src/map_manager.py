@@ -1,5 +1,6 @@
 from .map import Map, GridType
 from .map_object import MapObject
+from .group import Group
 
 class MapManager:
     """Manages all game maps and the objects on them."""
@@ -61,6 +62,23 @@ class MapManager:
         if not obj_to_move:
             raise ValueError(f"Object '{object_id}' not found on map '{map_name}'.")
 
+        # Calculate the change in position
+        dx = new_x - obj_to_move.x
+        dy = new_y - obj_to_move.y
+
+        # If the object is a group, move all its members by the same delta
+        if isinstance(obj_to_move, Group):
+            print(f"Moving group {obj_to_move.id}. Propagating move to {len(obj_to_move.object_ids)} members.")
+            for member_id in obj_to_move.object_ids:
+                member_obj = game_map.get_object(member_id)
+                if member_obj:
+                    member_obj.x += dx
+                    member_obj.y += dy
+                    print(f"  - Moved member {member_id} to ({member_obj.x}, {member_obj.y}).")
+                else:
+                    print(f"  - Warning: Member object with ID '{member_id}' not found.")
+
+        # Move the primary object (or the group object itself)
         obj_to_move.x = new_x
         obj_to_move.y = new_y
         print(f"Moved object {object_id} to ({new_x}, {new_y}) on map '{map_name}'.")

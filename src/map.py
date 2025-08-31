@@ -3,6 +3,9 @@ from typing import List, Optional
 from enum import Enum, auto
 from .map_object import MapObject
 from .token import Token
+from .shape import Shape
+from .group import Group
+from .path import Path
 
 class GridType(Enum):
     SQUARE = auto()
@@ -73,6 +76,12 @@ class Map:
             new_obj = None
             if obj_type == 'Token':
                 new_obj = Token.from_dict(obj_data)
+            elif obj_type == 'Shape':
+                new_obj = Shape.from_dict(obj_data)
+            elif obj_type == 'Group':
+                new_obj = Group.from_dict(obj_data)
+            elif obj_type == 'Path':
+                new_obj = Path.from_dict(obj_data)
             elif obj_type == 'MapObject':
                 new_obj = MapObject.from_dict(obj_data)
             else:
