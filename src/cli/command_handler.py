@@ -1,5 +1,10 @@
 from src.token import Token
 from src.map_object import MapObject
+from src.token import Token
+from src.map_object import MapObject
+from src.shape import Shape, ShapeType
+from src.path import Path
+from src.group import Group
 import src.fov as fov
 
 
