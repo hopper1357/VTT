@@ -1,5 +1,10 @@
 from src.token import Token
 from src.map_object import MapObject
+from src.token import Token
+from src.map_object import MapObject
+from src.shape import Shape, ShapeType
+from src.path import Path
+from src.group import Group
 import src.fov as fov
 
 
@@ -46,6 +51,9 @@ class CommandHandler:
         print("  object place <char> <map> <x> <y> <layer> [light=R] [blocks=T/F] - Places a generic object.")
         print("  object move <id> <map> <x> <y> - Moves any object or token to new coordinates.")
         print("  object remove <id> <map>      - Removes an object or token from a map.")
+        print("  shape place <type> <map> <x> <y> [opts] - Places a shape on a map (e.g. fill_color=#ff0000).")
+        print("  draw path <map> <x,y>... [opts] - Draws a path with a series of points.")
+        print("  group create <map> <id1> <id2>... - Groups multiple objects together.")
         print("  save <filepath>               - Saves the game state.")
         print("  load <filepath>               - Loads the game state.")
         print("  exit                          - Exits the application.")
@@ -433,3 +441,169 @@ class CommandHandler:
                 print(f"Error: {e}")
         else:
             print(f"Unknown object command: '{subcommand}'")
+
+    def _parse_drawable_kwargs(self, args):
+        """Helper to parse common optional arguments for drawable objects."""
+        kwargs = {}
+        for arg in args:
+            if '=' in arg:
+                key, value = arg.split('=', 1)
+                key = key.lower()
+                # Basic type conversion
+                if key in ['opacity']:
+                    try:
+                        kwargs[key] = float(value)
+                    except ValueError:
+                        print(f"Warning: Invalid float value for {key}. Ignoring.")
+                elif key in ['stroke_width', 'layer', 'size']:
+                    try:
+                        kwargs[key] = int(value)
+                    except ValueError:
+                        print(f"Warning: Invalid integer value for {key}. Ignoring.")
+                else:
+                    kwargs[key] = value
+        return kwargs
+
+    def do_shape(self, args):
+        """Handles shape commands. Usage: shape place <type> <map> <x> <y> [opts]"""
+        if not args or args[0].lower() != 'place':
+            print("Usage: shape place <type> <map_name> <x> <y> [key=value...]")
+            print("Types: circle, square, triangle, hexagon")
+            print("Options: layer=N, size=N, stroke_color=#hex, stroke_width=N, opacity=0.N, fill_color=#hex")
+            return
+
+        if len(args) < 5:
+            print("Usage: shape place <type> <map_name> <x> <y> [key=value...]")
+            return
+
+        shape_type_str, map_name, x_str, y_str = args[1], args[2], args[3], args[4]
+        optional_args = self._parse_drawable_kwargs(args[5:])
+
+        map_manager = self.engine.get_map_manager()
+        game_map = map_manager.get_map(map_name)
+        if not game_map:
+            print(f"Error: Map '{map_name}' not found.")
+            return
+
+        try:
+            shape_type = ShapeType[shape_type_str.upper()]
+        except KeyError:
+            print(f"Error: Invalid shape type '{shape_type_str}'. Valid types are: circle, square, triangle, hexagon.")
+            return
+
+        try:
+            x, y = int(x_str), int(y_str)
+        except ValueError:
+            print("Error: X and Y coordinates must be integers.")
+            return
+
+        # Set default display char based on shape
+        if 'display_char' not in optional_args:
+            optional_args['display_char'] = 'S'
+
+        if 'layer' not in optional_args:
+            optional_args['layer'] = 1 # Default layer
+
+        new_shape = Shape(x=x, y=y, shape_type=shape_type, **optional_args)
+        map_manager.add_object_to_map(map_name, new_shape)
+        print(f"Placed {shape_type.name.lower()} shape on map '{map_name}' at ({x},{y}). ID: {new_shape.id}")
+
+    def do_draw(self, args):
+        """Handles drawing commands. Usage: draw path <map> <x1,y1> <x2,y2>... [opts]"""
+        if not args or args[0].lower() != 'path':
+            print("Usage: draw path <map_name> <x1,y1> <x2,y2>... [key=value...]")
+            print("Options: layer=N, stroke_color=#hex, stroke_width=N, opacity=0.N")
+            return
+
+        if len(args) < 3:
+            print("Usage: draw path <map_name> <x1,y1> <x2,y2>...")
+            return
+
+        map_name = args[1]
+
+        # Find where points end and optional args begin
+        first_opt_idx = -1
+        for i, arg in enumerate(args[2:]):
+            if '=' in arg:
+                first_opt_idx = i + 2
+                break
+
+        point_args = args[2:first_opt_idx] if first_opt_idx != -1 else args[2:]
+        optional_args_list = args[first_opt_idx:] if first_opt_idx != -1 else []
+        optional_args = self._parse_drawable_kwargs(optional_args_list)
+
+        if not point_args:
+            print("Error: At least one point (e.g., 10,20) is required for a path.")
+            return
+
+        points = []
+        try:
+            for p_arg in point_args:
+                px, py = p_arg.split(',')
+                points.append((int(px), int(py)))
+        except ValueError:
+            print("Error: Points must be in 'x,y' format without spaces (e.g., 10,20).")
+            return
+
+        map_manager = self.engine.get_map_manager()
+        game_map = map_manager.get_map(map_name)
+        if not game_map:
+            print(f"Error: Map '{map_name}' not found.")
+            return
+
+        # Use the first point as the anchor x,y for the object
+        anchor_x, anchor_y = points[0]
+
+        # Set default display char
+        if 'display_char' not in optional_args:
+            optional_args['display_char'] = 'L'
+
+        if 'layer' not in optional_args:
+            optional_args['layer'] = 1 # Default layer
+
+        new_path = Path(x=anchor_x, y=anchor_y, points=points, **optional_args)
+        map_manager.add_object_to_map(map_name, new_path)
+        print(f"Placed path with {len(points)} points on map '{map_name}'. ID: {new_path.id}")
+
+    def do_group(self, args):
+        """Handles group commands. Usage: group create <map> <id1> <id2>..."""
+        if not args or args[0].lower() != 'create':
+            print("Usage: group create <map_name> <object_id1> <object_id2>...")
+            return
+
+        if len(args) < 3:
+            print("Usage: group create <map_name> <object_id1> <object_id2>...")
+            return
+
+        map_name = args[1]
+        object_ids = args[2:]
+
+        map_manager = self.engine.get_map_manager()
+        game_map = map_manager.get_map(map_name)
+        if not game_map:
+            print(f"Error: Map '{map_name}' not found.")
+            return
+
+        # Validate that all objects exist on the map
+        total_x, total_y = 0, 0
+        valid_ids = []
+        for obj_id in object_ids:
+            obj = game_map.get_object(obj_id)
+            if not obj:
+                print(f"Warning: Object with ID '{obj_id}' not found on map. Skipping.")
+                continue
+            valid_ids.append(obj_id)
+            total_x += obj.x
+            total_y += obj.y
+
+        if not valid_ids:
+            print("Error: No valid objects found to group.")
+            return
+
+        # Place the group's anchor at the average position of its members
+        anchor_x = total_x // len(valid_ids)
+        anchor_y = total_y // len(valid_ids)
+
+        new_group = Group(x=anchor_x, y=anchor_y, layer=0, display_char='G', object_ids=valid_ids)
+        map_manager.add_object_to_map(map_name, new_group)
+        print(f"Created group with {len(valid_ids)} members on map '{map_name}'. ID: {new_group.id}")
